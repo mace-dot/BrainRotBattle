@@ -30,3 +30,17 @@ The `Validate battle game` workflow also runs a real Rojo build and uploads the 
 No Studio or real-client result should be marked passed until it is actually run.
 
 Character extraction check: `git hash-object src/server/BattleServer/BrainrotSculptures.luau` must return `8e78c1f3377d3f869e617d1b0cd84e16ba6956d7`, matching the original repository.
+
+## Studio practice acceptance
+
+The portable suite also exercises the actual practice controller/state and the geometry preview boundary. It does not run Roblox rendering or simulate client input.
+
+- With one Studio client: choose a portal, start solo practice, confirm spawn/200 HP/bat/sniper and seven 50-HP targets. Check real cover occlusion.
+- Die with an intact objective, then test Destroy My Brainrot before and during a respawn delay. Use Reset Objectives after elimination; recover with one copy of each weapon.
+- Switch to each base and check the original character appearances. Reset during respawn/loading; no old callback may teleport or equip you later.
+- End or return to holding, then start a normal two-team local match. Normal victory/respawn rules must apply.
+- Start practice with another Studio client watching: only the owning tester may control it. Disconnect the owner and verify normal admission returns.
+- Set the flag false and restart Play: no panel or practice remote. On a published server, practice must remain unavailable even with the flag true.
+- While Studio is stopped, run the documented preview build twice, frame the map, and remove it. Verify no duplicate geometry or interactive prompts and no changes to unrelated objects/lighting. Press Play with a generated preview present; only one gameplay world should remain.
+
+Rojo and Roblox Studio are not installed in the task container; local validation uses Lua-compatible compilation and deterministic rules/boundary tests. Run the workflow's Rojo build and this manual checklist before claiming engine verification.

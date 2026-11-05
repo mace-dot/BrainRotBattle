@@ -13,6 +13,8 @@ local Match = require(Server.MatchState)
 local World = require(Server.World)
 local Combat = require(Server.Combat)
 local match = Match.new(Config)
+local liveMatch = match
+local practice
 local robloxTeams = {}
 for index, def in ipairs(Config.Characters) do
     local team = Instance.new("Team")
@@ -31,6 +33,9 @@ local function remote(name)
     return event
 end
 local action, snapshot, feedback = remote("Action"), remote("Snapshot"), remote("Feedback")
+local practiceEnabled = Config.StudioPracticeEnabled == true and RunService:IsStudio()
+remotes:SetAttribute("StudioPracticeEnabled", practiceEnabled)
+local practiceRemote = practiceEnabled and remote("Practice") or nil
 local world, combat
 local initialized, loading, selectionAt, deathGeneration, teleportAt = {}, {}, {}, {}, {}
 local function now() return workspace:GetServerTimeNow() end
@@ -64,6 +69,8 @@ local function travel(player, position)
     end)
 end
 
+-- Remove only our generated edit preview before constructing the runtime world.
+if RunService:IsStudio() then require(Server.StudioPreview).remove() end
 world = World.new(selectBase, travel)
 combat = Combat.new(match, world, feedback, function() world:update(match, now()) end)
 
@@ -154,6 +161,7 @@ local function added(player)
 end
 Players.PlayerAdded:Connect(added)
 Players.PlayerRemoving:Connect(function(player)
+    if practice then practice:remove(player.UserId) end
     match:leave(player.UserId)
     combat:remove(player)
     initialized[player], loading[player], selectionAt[player], deathGeneration[player], teleportAt[player] = nil, nil, nil, nil, nil
@@ -182,6 +190,44 @@ local function holding(player)
     else loadCharacter(player) end
 end
 
+-- One optional integration boundary: disabling the flag never loads practice rules.
+if practiceEnabled then
+    local PracticeState = require(Server.PracticeState)
+    local StudioPractice = require(Server.StudioPractice)
+    practice = StudioPractice.new({
+        Config = Config, LiveMatch = liveMatch, IsStudio = function() return RunService:IsStudio() end, Clock = now,
+        NewState = function(owner, base, round) return PracticeState.new(Config, Match, owner, base, round) end,
+        SetMatch = function(current) match = current; combat.Match = current end,
+        InHolding = function(id)
+            local p = Players:GetPlayerByUserId(id)
+            local root = p and rootOf(p)
+            return root ~= nil and Layout.inHolding(Config, root.Position.X, root.Position.Y, root.Position.Z)
+        end,
+        LoadOwner = function(id)
+            local p = Players:GetPlayerByUserId(id)
+            if p then combat:clearTools(p); combat.Weapons:remove(id); loadCharacter(p) end
+        end,
+        ReturnHolding = function(id)
+            local p = Players:GetPlayerByUserId(id)
+            if p then
+                local shield = p.Character and p.Character:FindFirstChild("SpawnShield")
+                if shield then shield:Destroy() end
+                holding(p)
+            end
+        end,
+        Refresh = function() world:update(match, now()) end,
+        Notify = function(id, data)
+            if id then
+                local p = Players:GetPlayerByUserId(id)
+                if p then practiceRemote:FireClient(p, data) end
+            else practiceRemote:FireAllClients(data) end
+        end,
+    })
+    practiceRemote.OnServerEvent:Connect(function(player, kind, base)
+        practice:handle(player.UserId, kind, base)
+    end)
+end
+
 local function publish(t)
     local seconds = math.max(0, math.ceil(match.Deadline-t))
     local survivors = #match:survivingTeams()
@@ -205,6 +251,7 @@ local function publish(t)
             end
         end
         snapshot:FireClient(player, {
+            Practice = match.IsPractice == true,
             Phase = match.Phase, Round = match.Round, Seconds = seconds, Result = result,
             Active = member ~= nil, Alive = member and member.Alive or false,
             Eliminated = match.Phase == "Active" and match.Members[player.UserId] ~= nil and member == nil,
@@ -225,6 +272,7 @@ RunService.Heartbeat:Connect(function(dt)
     if accumulated < 0.15 then return end
     accumulated = 0
     local t = now()
+    if practice then practice:step() end
     -- Resolve deaths/disconnects together on this tick before choosing a winner.
     for _, player in ipairs(Players:GetPlayers()) do
         local root = rootOf(player)
@@ -253,7 +301,10 @@ RunService.Heartbeat:Connect(function(dt)
     publish(t)
 end)
 
--- Studio-only helper: select different portals in a two-client local server to play.
-if RunService:IsStudio() then print("[BrainRotBattle] Start Server + 2 Players, then choose two portals.") end
+if practiceEnabled then
+    print("[BrainRotBattle] Choose a portal, then Studio Test Tools > Start Solo Practice. Use two opposing clients for normal PvP.")
+elseif RunService:IsStudio() then
+    print("[BrainRotBattle] Practice disabled. Start Server + 2 Players and choose opposing team portals.")
+end
 remotes.Parent = ReplicatedStorage
 print("[BrainRotBattle] Ready", Config.BuildId, "PlaceId", game.PlaceId)

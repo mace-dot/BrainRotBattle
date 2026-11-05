@@ -70,15 +70,27 @@ local grass = Color3.fromRGB(72, 112, 63)
 local stone = Color3.fromRGB(83, 96, 91)
 local wood = Color3.fromRGB(94, 65, 40)
 
-function World.new(onSelect, onExit)
-    local old = workspace:FindFirstChild("BrainRotBattles")
-    if old then old:Destroy() end
+-- Geometry-only entry point. Nil callbacks produce no interactive connections.
+function World.build(parent, options)
+    options = options or {}
+    local name = options.Name or "BrainRotBattles"
+    local old = parent:FindFirstChild(name)
+    if old then
+        assert(old:GetAttribute("BrainRotGenerated") == true, "Refusing to replace unrelated model: " .. name)
+        old:Destroy()
+    end
     local model = Instance.new("Model")
-    model.Name = "BrainRotBattles"
-    model.Parent = workspace
+    model.Name = name
+    model:SetAttribute("BrainRotGenerated", true)
+    model.Parent = parent
     local self = setmetatable({ Model = model, Bases = {}, Portals = {} }, World)
     self:arena()
-    self:holding(onSelect, onExit)
+    self:holding(options.OnSelect, options.OnExit)
+    return self
+end
+
+function World.new(onSelect, onExit)
+    local self = World.build(workspace, { OnSelect = onSelect, OnExit = onExit })
     local lighting = game:GetService("Lighting")
     lighting.ClockTime = 15
     lighting.Brightness = 2.5
@@ -221,26 +233,31 @@ function World:holding(onSelect, onExit)
         anchor.CanCollide = false
         anchor.CanQuery = false
         local status = label(anchor, def.Name .. "\nJOIN TEAM • 0 / 4", color, 230, 92, 240)
-        local prompt = Instance.new("ProximityPrompt")
-        prompt.ActionText = "Join team"
-        prompt.ObjectText = def.Name
-        prompt.MaxActivationDistance = 16
-        prompt.HoldDuration = 0.2
-        prompt.RequiresLineOfSight = false
-        prompt.Parent = pad
-        prompt.Triggered:Connect(function(player) onSelect(player, i, pad.Position) end)
+        local prompt
+        if onSelect then
+            prompt = Instance.new("ProximityPrompt")
+            prompt.ActionText = "Join team"
+            prompt.ObjectText = def.Name
+            prompt.MaxActivationDistance = 16
+            prompt.HoldDuration = 0.2
+            prompt.RequiresLineOfSight = false
+            prompt.Parent = pad
+            prompt.Triggered:Connect(function(player) onSelect(player, i, pad.Position) end)
+        end
         local trigger = part(model, "WalkInSelection", Vector3.new(18, 8, 3), cf*CFrame.new(0, 4, -4), color)
         trigger.Transparency = 1
         trigger.CanCollide = false
         trigger.CanQuery = false
-        trigger.CanTouch = true
-        trigger.Touched:Connect(function(hit)
-            local player = game:GetService("Players"):GetPlayerFromCharacter(hit.Parent)
-            if player then onSelect(player, i, pad.Position) end
-        end)
+        trigger.CanTouch = onSelect ~= nil
+        if onSelect then
+            trigger.Touched:Connect(function(hit)
+                local player = game:GetService("Players"):GetPlayerFromCharacter(hit.Parent)
+                if player then onSelect(player, i, pad.Position) end
+            end)
+        end
         self.Portals[i] = { Label = status, Prompt = prompt }
     end
-    if Config.SinglePlayerPlaceId > 0 then
+    if Config.SinglePlayerPlaceId > 0 and onExit then
         local exit = part(room, "SinglePlayerExit", Vector3.new(15, 1, 15), CFrame.new(h.X+92, h.Y+0.5, h.Z), Color3.fromRGB(255, 144, 71), Enum.Material.Neon)
         label(exit, "Single player\nRETURN", Color3.fromRGB(255, 188, 104), 290, 90, 260)
         local prompt = Instance.new("ProximityPrompt")
@@ -269,10 +286,11 @@ function World:update(state, now)
     local seconds = math.max(0, math.ceil(state.Deadline-now))
     local caption = state.Phase .. (state.Deadline > 0 and (" • "..seconds.."s") or "")
     self.RoundLabel.Text = "BRAIN ROT BATTLES\n" .. caption .. "\n8 teams • 4 players each • Choose a team portal"
+    if state.IsPractice then self.RoundLabel.Text = "STUDIO PRACTICE — NOT A LIVE MATCH\nUse Studio Test Tools to reset or exit" end
     for i, def in ipairs(Config.Characters) do
         local seats = state:seats(i)
         self.Portals[i].Label.Text = def.Name .. "\n" .. seats .. " / " .. Config.TeamSize .. (seats >= Config.TeamSize and " • TEAM FULL" or " • JOIN TEAM")
-        self.Portals[i].Prompt.ActionText = seats >= Config.TeamSize and "Team full" or "Join team"
+        if self.Portals[i].Prompt then self.Portals[i].Prompt.ActionText = seats >= Config.TeamSize and "Team full" or "Join team" end
         local team, hp = nil, 0
         if state.Phase == "Active" or state.Phase == "Results" then
             local active = state.Teams[i]

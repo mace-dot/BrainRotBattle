@@ -39,7 +39,7 @@ rojo build default.project.json --output build/BrainRotBattle.rbxlx
 
 Open the generated place in **a new Roblox Studio place**. For live development, use `rojo serve` and connect the Rojo Studio plugin to that new place. Set **Max Players to 32** in the published place's settings. Do not sync into the existing Rizzler single-player place: unmanaged old Studio objects are not part of this clean project.
 
-In Studio, use **Test → Start Server with 2 players**. Join different character teams in the two clients. Selecting the same team intentionally waits for an opposing team. Test eight players as two full teams, then all 32 seats in a published test server. Test touch emulation separately. A normal one-player Play test intentionally waits for an opponent.
+In Studio, use **Test → Start Server with 2 players**. Join different character teams in the two clients. Selecting the same team intentionally waits for an opposing team. Test eight players as two full teams, then all 32 seats in a published test server. Test touch emulation separately. A normal one-player multiplayer session waits for an opponent; use the optional solo practice tools below to test alone.
 
 Run the portable server rules/combat checks from the repository root:
 
@@ -49,6 +49,42 @@ lua5.4 tests/run.lua
 ```
 
 GitHub Actions runs the tests and Rojo build and uploads a `BrainRotBattle-place` artifact. Roblox Studio and published-server tests still need to be performed; the Lua checks mock engine boundaries and do not prove physics, UI layout, replication, or device performance.
+
+## Solo Studio testing (optional and retractable)
+
+1. Sync/build the current project into a fresh Roblox Studio place, then press **Play**. One local player is enough for practice.
+2. Walk into a Brainrot team portal to select your starting base.
+3. Expand **STUDIO TEST TOOLS** and click **Start Solo Practice**.
+4. You enter the real forest arena with 200 HP, a bat and sniper. Wait for the 3-second spawn shield before firing. The seven enemy Brainrots have 50 HP and use normal server hit detection.
+5. Use **Reset Objectives + Recover Player**, **Respawn at My Base**, or the base chooser followed by **Switch to Chosen Base** to repeat tests.
+6. Use **Destroy My Brainrot** and then reset/die to test final-life elimination. **Reset Objectives** recovers you after elimination.
+7. **End Practice** or **Return to Holding** restores normal multiplayer selection. Practice has no automatic victory or timeout.
+
+Only one tester owns the practice session. Other Studio clients cannot control it. An active normal match blocks practice startup. Two-player testing remains available as before: end practice, select opposing portals in two local clients, and wait for the normal countdown.
+
+**Disable everything:** set `StudioPracticeEnabled = false` in `src/shared/Config.luau`, sync, and restart Play. No practice remote or panel is created. The server always also requires `RunService:IsStudio()`, so published gameplay cannot enter practice even with the flag enabled.
+
+Practice rules live in `PracticeState.luau` and `StudioPractice.luau`; production `MatchState.luau`, combat rules, health values and team capacity are unchanged. The optional panel is a separate LocalScript. The feature is delivered in one dedicated **Studio-only practice** Git commit; use `git log --oneline --grep='Studio-only practice'` to identify it and `git revert <commit-sha>` to remove it cleanly. Later overlapping edits can require resolving normal Git conflicts.
+
+The revised implementation prompt, including the reversibility requirement, is in [docs/STUDIO_PRACTICE_PROMPT.md](docs/STUDIO_PRACTICE_PROMPT.md).
+
+### Map preview before pressing Play
+
+With Rojo synced and Studio stopped, open the **Command Bar** and run:
+
+```lua
+require(game.ServerScriptService.BattleServer.StudioPreview).build()
+```
+
+Select `Workspace.BrainRotBattle_EditorPreview` in Explorer and press **F** to frame the full map. This uses the live geometry builder, original sculptures and portal labels, with no player sessions or interactive event connections. Rebuilding replaces only its marked generated container; unrelated objects and editor lighting are preserved.
+
+Remove the preview with:
+
+```lua
+require(game.ServerScriptService.BattleServer.StudioPreview).remove()
+```
+
+The runtime removes an owned edit preview before building the actual world. The single practice flag also gates preview generation. Editor preview is for map inspection; press Play for weapons and respawns. If you edit builder code after requiring it in the Command Bar, reopen the place to refresh Studio's module cache before rebuilding.
 
 ## Arena
 

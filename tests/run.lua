@@ -283,6 +283,15 @@ local function combatTests()
         local f=fixture(); local hit={GetAttribute=function() return 2 end}; f.World.Bases[2]={Hitbox=hit,Team=2}
         f.SetHit(hit); f.Shoot(); eq(f.Match.Teams[2].HP,40); eq(f.Hum.Health,200)
     end)
+    test("practice targets use the production weapon raycast and damage path",function()
+        local f=fixture()
+        local Practice=dofile("src/server/BattleServer/PracticeState.luau")
+        local s=Practice.new(Config,Match,101,1,1)
+        f.Service.Match=s
+        local hit={GetAttribute=function() return 2 end}
+        f.World.Bases[2]={Hitbox=hit,Team=2}; f.SetHit(hit); f.Shoot()
+        eq(s.Teams[2].HP,40); eq(s.Teams[1].HP,50)
+    end)
     test("bat fan damages at most one player per swing",function()
         local f=fixture(); f.Tool.GetAttribute=function(_,key) return key=="BattleRound" and 1 or "Bat" end
         f.Shoot(); eq(f.Hum.Health,175); f.Shoot(0.1); eq(f.Hum.Health,175)
@@ -292,10 +301,13 @@ local function combatTests()
     end)
 end
 combatTests()
+dofile("tests/practice.lua")(test, eq, Config, Match)
 
 -- Compilation catches accidental syntax errors even in engine-dependent scripts.
 for _, path in ipairs({
     "src/shared/Config.luau", "src/shared/Layout.luau", "src/server/Main.server.luau",
+    "src/server/BattleServer/PracticeState.luau", "src/server/BattleServer/StudioPractice.luau",
+    "src/server/BattleServer/StudioPreview.luau", "src/client/StudioPractice.client.luau",
     "src/server/BattleServer/Combat.luau", "src/server/BattleServer/World.luau",
     "src/server/BattleServer/MatchState.luau", "src/server/BattleServer/WeaponState.luau",
     "src/server/BattleServer/BrainrotSculptures.luau", "src/client/Battle.client.luau",

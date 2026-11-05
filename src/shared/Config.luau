@@ -2,6 +2,8 @@
 return {
     Title = "BRAIN ROT BATTLES",
     BuildId = "forest-team-battles-20261105b",
+    -- One switch for all solo practice tools. The server ALSO requires IsStudio().
+    StudioPracticeEnabled = true,
     PlayerHealth = 200,
     BrainrotHealth = 50,
     Capacity = 32,

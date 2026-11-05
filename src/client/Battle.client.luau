@@ -235,6 +235,10 @@ snapshot.OnClientEvent:Connect(function(data)
     elseif data.Eliminated then alert.Text = "ELIMINATED • Choose a portal for the next round"
     elseif data.Protection > 0 then alert.Text = "SPAWN SHIELD • Combat unlocks in "..math.ceil(data.Protection).."s" end
     if data.Phase == "Results" or data.Phase == "Intermission" then statusLabel.Text = data.Result end
+    if data.Practice then
+        phaseLabel.Text = "STUDIO PRACTICE — NOT A LIVE MATCH"
+        statusLabel.Text = data.Active and "Test enemy objectives, cover and respawns • No timer or automatic victory" or "Studio practice is running • Use the test tools to reset or exit"
+    end
     if data.Weapon == "Sniper" then
         weaponLabel.Text = data.Reloading > 0 and ("SNIPER • Reloading "..string.format("%.1f", data.Reloading).."s") or ("SNIPER • "..data.Ammo.." / "..Config.Weapons.Sniper.Magazine.." • R: reload")
     elseif data.Weapon == "Bat" then weaponLabel.Text = "BAT • Click / FIRE to swing"
