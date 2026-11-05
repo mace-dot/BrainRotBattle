@@ -4,6 +4,7 @@ local Layout = require(Shared.Layout)
 local Sculptures = require(script.Parent.BrainrotSculptures)
 local Architecture = require(script.Parent.ArenaArchitecture)
 local Details = require(script.Parent.ArenaDetails)
+local HighGround = require(script.Parent.HighGround)
 local World = {}
 World.__index = World
 
@@ -114,6 +115,7 @@ function World.new(onSelect, onExit)
 end
 
 function World:tree(cf, height, variant)
+    if not HighGround.clearOfClimbs(Config, cf.Position) then return end
     local trunk = part(self.Model, "TreeTrunk", Vector3.new(4, height, 4), cf * CFrame.new(0, height/2, 0), wood, Enum.Material.Wood)
     trunk.Shape = Enum.PartType.Cylinder
     trunk.CFrame = trunk.CFrame * CFrame.Angles(0, 0, math.pi/2)
@@ -145,37 +147,45 @@ function World:arena()
     local m = self.Model
     Architecture.ground(m, Config, Layout, part)
     Details.center(m, part)
+    HighGround.build(m, Config, part)
     -- Low outer ridges keep the arena legible without invisible movement barriers.
     for _, sign in ipairs({-1, 1}) do
-        part(m, "BoundaryRidge", Vector3.new(Config.ArenaSize, 20, 8), CFrame.new(0, 8, sign*446), stone, Enum.Material.Slate)
-        part(m, "BoundaryRidge", Vector3.new(8, 20, Config.ArenaSize), CFrame.new(sign*446, 8, 0), stone, Enum.Material.Slate)
+        local edge = Config.ArenaSize/2-4
+        part(m, "BoundaryRidge", Vector3.new(Config.ArenaSize, 20, 8), CFrame.new(0, 8, sign*edge), stone, Enum.Material.Slate)
+        part(m, "BoundaryRidge", Vector3.new(8, 20, Config.ArenaSize), CFrame.new(sign*edge, 8, 0), stone, Enum.Material.Slate)
     end
     for i, def in ipairs(Config.Characters) do
         local layout = Layout.base(Config, i)
         local color = Color3.fromHex(def.Color)
         local cf = CFrame.new(layout.X, 0, layout.Z) * CFrame.Angles(0, layout.Yaw, 0)
         self.Bases[i] = Architecture.base(m, def, i, cf, color, part, sculpture, label)
-        Details.sector(m, layout.Angle, part)
+        Details.sector(m, layout.Angle, part, Config)
         -- Eight equal paths and eight repeated cover sectors provide balanced travel.
-        for n = 1, 6 do
-            local distance = 40 + n * 37
+        local trailCount = math.ceil((Config.BaseRadius-95)/37)
+        for n = 1, trailCount do
+            local distance = 57 + (n-0.5)*(Config.BaseRadius-102)/trailCount
             local pathCF = CFrame.lookAt(Vector3.new(math.cos(layout.Angle)*distance, 0, math.sin(layout.Angle)*distance), Vector3.new(0, 0, 0))
-            part(m, "Trail", Vector3.new(14, 0.12, 39), pathCF, Color3.fromRGB(128, 117, 83), Enum.Material.Ground)
+            part(m, "Trail", Vector3.new(14, 0.12, (Config.BaseRadius-102)/trailCount+1), pathCF, Color3.fromRGB(128, 117, 83), Enum.Material.Ground)
             local offset = n % 2 == 0 and 1 or -1
             local boulder = part(m, "BoulderCover", Vector3.new(13, 9, 11), pathCF*CFrame.new(offset*24, 3.5, 0), stone, Enum.Material.Rock)
             boulder.Shape = Enum.PartType.Ball
-            if n == 2 or n == 5 then
+            if n % 3 == 2 then
                 part(m, "FallenLog", Vector3.new(20, 4, 5), pathCF*CFrame.new(-offset*27, 2, 8)*CFrame.Angles(0, 0.3, 0), wood, Enum.Material.Wood)
                 part(m, "Stump", Vector3.new(5, 4, 5), pathCF*CFrame.new(-offset*39, 2, -7), wood, Enum.Material.Wood)
             end
         end
-        for ring = 1, 4 do
-            local radius = 55 + ring*53
+        for ring = 1, 7 do
+            local radius = 55 + ring*(Config.BaseRadius-90)/7
             local angle = layout.Angle + math.pi/8
             local forest = CFrame.new(math.cos(angle)*radius, 0, math.sin(angle)*radius)
             self:tree(forest, 19+ring*3, ring%2)
             self:tree(forest*CFrame.new(13, 0, 12), 17+ring*2, (ring+1)%2)
             self:tree(forest*CFrame.new(-12, 0, -10), 22+ring, ring%2)
+            -- Spread additional groves across the widened sectors, away from trails.
+            for _, side in ipairs({-1,1}) do
+                local groveAngle = angle+side*0.11
+                self:tree(CFrame.new(math.cos(groveAngle)*radius,0,math.sin(groveAngle)*radius),22+(ring%4)*5,ring%2)
+            end
             local bush = part(m, "Bush", Vector3.new(10, 4, 8), forest*CFrame.new(15, 2, -12), Color3.fromRGB(62, 104, 53), Enum.Material.Grass)
             bush.Shape = Enum.PartType.Ball
             bush.CanCollide = false
@@ -183,7 +193,7 @@ function World:arena()
         end
         -- Shallow terraced ridges with walkable 1-stud steps; floor between them is a depression.
         local angle = layout.Angle + math.pi/8
-        local ridge = CFrame.lookAt(Vector3.new(math.cos(angle)*155, 0, math.sin(angle)*155), Vector3.new(0, 0, 0))
+        local ridge = CFrame.lookAt(Vector3.new(math.cos(angle)*Config.BaseRadius*0.4, 0, math.sin(angle)*Config.BaseRadius*0.4), Vector3.new(0, 0, 0))
         for step = 1, 3 do
             part(m, "MossyRidge", Vector3.new(32-step*6, step, 32-step*6), ridge*CFrame.new(-23, step/2, 21), grass, Enum.Material.Grass)
         end
@@ -221,6 +231,7 @@ function World:holding(onSelect, onExit)
     banner.CanQuery = false
     self.RoundLabel = label(banner, "BRAIN ROT BATTLES\n8 TEAMS • 4 PLAYERS PER TEAM", Color3.fromRGB(123, 255, 190), 620, 130, 450)
     self.HoldingSpawn = CFrame.new(h.X, h.Y+5, h.Z+8)
+    self.HoldingSpawnLocation = Architecture.spawnLocation(room, CFrame.new(h.X,h.Y+0.2,h.Z+8))
     for i, def in ipairs(Config.Characters) do
         local position = Layout.portal(Config, i)
         local cf = CFrame.new(position.X, position.Y, position.Z) * CFrame.Angles(0, i <= 4 and math.pi or 0, 0)

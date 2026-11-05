@@ -46,6 +46,10 @@ The portable suite also exercises the actual practice controller/state and the g
 Rojo and Roblox Studio are not installed in the task container; local validation uses Lua-compatible compilation and deterministic rules/boundary tests. Run the workflow's Rojo build and this manual checklist before claiming engine verification.
 # Three-floor arena and selection-area checks
 
+- Start solo practice from each chosen portal: spawn inside that base's ground floor, with 200 HP. Repeat Reset Objectives, Respawn and Switch Base, including quick repeated actions during character loading; check that there is no sky spawn or immediate bounds death.
+- Traverse the enlarged island to the outer bases; no old boundary wall should cut through the map. The holding platform must remain outside the combat area.
+- Climb all four lookout ladders and both giant-tree vines. Step onto each deck through its opening, descend again, and sit on each tree's seats. Check touch/controller climbing and that streamed platforms appear with their climb.
+
 - Restart Play after syncing the updated source. Check the eight character signs at normal camera distance and while zooming out: they should recede with the portals, with no oversized reservation panel. The existing team HUD should be unchanged.
 - Check the straight portal rows and each detailed character. Walk-in selection and the nearby E/touch/controller prompt should still reserve a seat.
 - Jump against all four holding-platform edges and corners, including from a portal frame: the invisible border should keep the avatar on the platform.

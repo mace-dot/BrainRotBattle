@@ -4,6 +4,23 @@ local stone = Color3.fromRGB(79, 87, 80)
 local dark = Color3.fromRGB(43, 51, 47)
 local wood = Color3.fromRGB(100, 73, 47)
 
+function Architecture.spawnLocation(parent, cf)
+    local spawn = Instance.new("SpawnLocation")
+    spawn.Name = "SafeSpawnLocation"
+    spawn.Size = Vector3.new(4, 0.2, 4)
+    spawn.CFrame = cf
+    spawn.Anchored = true
+    spawn.Transparency = 1
+    spawn.CanCollide = false
+    spawn.CanTouch = false
+    spawn.CanQuery = false
+    spawn.Neutral = true -- Assigned explicitly through Player.RespawnLocation.
+    spawn.AllowTeamChangeOnTouch = false
+    spawn.Duration = 0 -- The game supplies its own timed spawn shield.
+    spawn.Parent = parent
+    return spawn
+end
+
 function Architecture.ground(parent, config, layout, part)
     local half = config.ArenaSize/2
     local rectangles = {{-half, half, -half, half}}
@@ -105,7 +122,8 @@ function Architecture.base(parent, def, index, cf, color, part, sculpture, label
     anchor.Transparency = 1; anchor.CanCollide = false; anchor.CanQuery = false
     local status = label(anchor,def.Name .. "\nUNOCCUPIED",color,18,3.5,130,true)
     block("SpawnPad",Vector3.new(22,0.12,18),Vector3.new(0,0.06,-10),color,Enum.Material.Neon)
-    return {Model=base,Spawn=cf*CFrame.new(0,4,-10),Hitbox=hit,Statue=statue,Label=status,Team=nil,HP=0}
+    local spawnLocation = Architecture.spawnLocation(base, cf*CFrame.new(0,0.22,-10))
+    return {Model=base,Spawn=cf*CFrame.new(0,4,-10),SpawnLocation=spawnLocation,Hitbox=hit,Statue=statue,Label=status,Team=nil,HP=0}
 end
 
 return Architecture

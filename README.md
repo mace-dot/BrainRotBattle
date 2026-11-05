@@ -62,6 +62,8 @@ GitHub Actions runs the tests and Rojo build and uploads a `BrainRotBattle-place
 
 Only one tester owns the practice session. Other Studio clients cannot control it. An active normal match blocks practice startup. Two-player testing remains available as before: end practice, select opposing portals in two local clients, and wait for the normal countdown.
 
+Practice starts inside the ground floor of the team selected at a portal. Each base has an explicit engine spawn point; final character positioning and death handling are configured after `LoadCharacterAsync` completes, with velocity cleared. Reset, respawn and switch-base actions use the same placement path.
+
 **Disable everything:** set `StudioPracticeEnabled = false` in `src/shared/Config.luau`, sync, and restart Play. No practice remote or panel is created. The server always also requires `RunService:IsStudio()`, so published gameplay cannot enter practice even with the flag enabled.
 
 Practice rules live in `PracticeState.luau` and `StudioPractice.luau`; production `MatchState.luau`, combat rules, health values and team capacity are unchanged. The optional panel is a separate LocalScript. The feature is delivered in one dedicated **Studio-only practice** Git commit; use `git log --oneline --grep='Studio-only practice'` to identify it and `git revert <commit-sha>` to remove it cleanly. Later overlapping edits can require resolving normal Git conflicts.
@@ -88,9 +90,11 @@ The runtime removes an owned edit preview before building the actual world. The 
 
 ## Arena
 
-The 900×900 arena has eight bases on a 330-stud radius, approximately 253 studs between adjacent bases. Every fort has a basement at Y=-12, a ground floor at Y=0, and a second floor at Y=16. Separate stairs connect the floors. The matching Brainrot and its objective hitbox sit on a pedestal upstairs; players spawn on the ground floor. Cardinal foundations fit exact openings in the arena ground so the basements are genuinely accessible. Front and side doors provide multiple approaches.
+The 1300×1300 arena has eight bases on a 500-stud radius, approximately 383 studs between adjacent bases. Every fort has a basement at Y=-12, a ground floor at Y=0, and a second floor at Y=16. Separate stairs connect the floors. The matching Brainrot and its objective hitbox sit on a pedestal upstairs; players spawn on the ground floor. Cardinal foundations fit exact openings in the arena ground so the basements are genuinely accessible. Front and side doors provide multiple approaches.
 
-Eight trail/cover sectors lead to a central metal supply shelter and a ring of tribute platforms. The forest contains 96 branching trees with layered crowns, ferns, mushrooms, boulders, logs, ruined arches, abandoned camps, crates, marsh stepping stones, cliffs and mossy ridges. Camps and crates are scenery/cover, not loot systems. Repeated sectors keep cover broadly balanced. Final sightlines, stair traversal, travel times, and mobile frame rate require Studio playtesting.
+Eight longer trail/cover sectors lead to a central metal supply shelter and a ring of tribute platforms. Seven rings of branching trees and undergrowth fill the expanded island, along with ferns, mushrooms, boulders, logs, ruined arches, abandoned camps, crates, marsh stepping stones, cliffs and mossy ridges. Camps and crates are scenery/cover, not loot systems. Repeated sectors keep cover broadly balanced. Final sightlines, stair traversal, travel times, and mobile frame rate require Studio playtesting.
+
+Four small wooden lookout towers have 16-stud-high decks and native climbable ladders. Two giant trees have 27-stud-high perches, two seats each, and visible leafy vines backed by native climbing trusses. Walk into a ladder/vine and move forward to climb; leave through the opening at the top. Ordinary tree placement leaves their approaches clear. These six landmarks stream as complete models. The holding platform remains separate, north of the enlarged island at Z=-850.
 
 The holding platform is physically isolated north of the arena and enclosed by invisible collision walls. Square portals face straight inward in two rows. Character/reservation signs use world-space dimensions with a 22-pixel text ceiling, shrinking with distance instead of dominating the screen when zoomed out. A short-range native join prompt avoids duplicating the character title. The central **BRAIN ROT BATTLES** sign and on-screen team HUD retain their existing sizing. There is no active single-player portal unless an optional external destination is configured.
 
@@ -105,6 +109,7 @@ The holding platform is physically isolated north of the arena and enclosed by i
 | `src/server/BattleServer/World.luau` | Holding space, eight selection portals, forest, bases and objective hitboxes |
 | `src/server/BattleServer/ArenaArchitecture.luau` | Excavated ground, three-floor forts, stairs, upstairs objectives |
 | `src/server/BattleServer/ArenaDetails.luau` | Central supply shelter and repeated forest/camp dressing |
+| `src/server/BattleServer/HighGround.luau` | Four small lookouts, two giant climbable trees, foliage clearance |
 | `src/server/BattleServer/BrainrotSculptures.luau` | Detailed procedural character visuals shared by portals and bases |
 | `src/shared/Config.luau` | PvP balance and destination configuration |
 | `src/shared/Layout.luau` | Scalar map geometry and bounds |

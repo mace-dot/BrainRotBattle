@@ -85,11 +85,16 @@ local function place(player, character)
     hum.WalkSpeed = Config.WalkSpeed
     hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
     hum.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOn
+    -- Loading is finished before placement. Reset momentum so a falling old body
+    -- cannot carry its velocity into the selected base.
+    root.Anchored = true
     if member and member.Alive then
         local offset = Layout.spawnOffset(member.Slot)
         player.Team = robloxTeams[member.Base]
         player.Neutral = false
-        character:PivotTo(world.Bases[member.Base].Spawn*CFrame.new(offset.X, 0, offset.Z))
+        local base = world.Bases[member.Base]
+        player.RespawnLocation = base.SpawnLocation
+        character:PivotTo(base.Spawn*CFrame.new(offset.X, 0, offset.Z))
         player:SetAttribute("ProtectedUntil", now()+Config.SpawnProtection)
         local shield = Instance.new("ForceField")
         shield.Name = "SpawnShield"
@@ -99,15 +104,19 @@ local function place(player, character)
     else
         player.Neutral = true
         player.Team = nil
+        player.RespawnLocation = world.HoldingSpawnLocation
         local offset = Vector3.new(((player.UserId%5)-2)*4, 0, 0)
         character:PivotTo(world.HoldingSpawn+offset)
         player:SetAttribute("ProtectedUntil", 0)
         combat:clearTools(player)
     end
+    root.AssemblyLinearVelocity = Vector3.zero
+    root.AssemblyAngularVelocity = Vector3.zero
+    root.Anchored = false
     character:SetAttribute("BattleReady", true)
 end
 
-local loadCharacter
+local loadCharacter, characterAdded
 loadCharacter = function(player, attempt)
     if not player.Parent or loading[player] then return end
     loading[player] = true
@@ -116,7 +125,15 @@ loadCharacter = function(player, attempt)
     deathGeneration[player] = (deathGeneration[player] or 0)+1
     if player.Character then player.Character:SetAttribute("BattleReady", false) end
     task.spawn(function()
-        local ok, err = pcall(function() player:LoadCharacterAsync() end)
+        local ok, err = pcall(function()
+            local member = match:participant(player.UserId)
+            player.RespawnLocation = member and member.Alive
+                and world.Bases[member.Base].SpawnLocation or world.HoldingSpawnLocation
+            player:LoadCharacterAsync()
+            -- CharacterAdded fires BEFORE Roblox's final spawn positioning. Moving
+            -- there can be overwritten, leaving the tester in the sky/out of bounds.
+            if player.Parent and player.Character then characterAdded(player, player.Character) end
+        end)
         loading[player] = nil
         if not ok and player.Parent then
             warn("[BrainRotBattle] character load failed", player.UserId, err)
@@ -129,7 +146,7 @@ loadCharacter = function(player, attempt)
     end)
 end
 
-local function characterAdded(player, character)
+characterAdded = function(player, character)
     deathGeneration[player] = (deathGeneration[player] or 0)+1
     local generation = deathGeneration[player]
     place(player, character)
@@ -156,8 +173,11 @@ local function added(player)
     initialized[player] = true
     player.Neutral = true
     player.Team = nil
-    player.CharacterAdded:Connect(function(character) characterAdded(player, character) end)
-    if player.Character then task.spawn(characterAdded, player, player.Character) else loadCharacter(player) end
+    player.CharacterAdded:Connect(function(character)
+        -- The loader owns final placement and death binding once loading completes.
+        character:SetAttribute("BattleReady", false)
+    end)
+    loadCharacter(player)
 end
 Players.PlayerAdded:Connect(added)
 Players.PlayerRemoving:Connect(function(player)
@@ -183,10 +203,16 @@ local function holding(player)
     player:SetAttribute("ProtectedUntil", 0)
     player.Neutral = true
     player.Team = nil
+    player.RespawnLocation = world.HoldingSpawnLocation
     local char = player.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     if hum and hum.Health > 0 then
         char:PivotTo(world.HoldingSpawn+Vector3.new(((player.UserId%5)-2)*4, 0, 0))
+        local root = rootOf(player)
+        if root then
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+        end
     else loadCharacter(player) end
 end
 

@@ -177,13 +177,13 @@ end)
 test("base separation substantially exceeds old layout", function()
     local minimum=math.huge
     for i=1,8 do for j=i+1,8 do local a,b=Layout.base(Config,i),Layout.base(Config,j); minimum=math.min(minimum,math.sqrt((a.X-b.X)^2+(a.Z-b.Z)^2)) end end
-    assert(minimum > 250)
+    assert(minimum > 380)
 end)
 test("all portals fit isolated holding area", function()
     for i=1,8 do local p=Layout.portal(Config,i); assert(Layout.inHolding(Config,p.X,p.Y+2,p.Z)); eq(Layout.inArena(Config,p.X,p.Y+2,p.Z),false) end
 end)
 test("bounds reject holding-area combat and arena escape", function()
-    eq(Layout.inArena(Config,0,5,0),true); eq(Layout.inArena(Config,451,5,0),false); eq(Layout.inArena(Config,0,-40,0),false)
+    eq(Layout.inArena(Config,0,5,0),true); eq(Layout.inArena(Config,Config.ArenaSize/2+1,5,0),false); eq(Layout.inArena(Config,0,-40,0),false)
 end)
 
 -- Exercise the production combat handler with a minimal Roblox boundary mock.
@@ -268,7 +268,8 @@ local function combatTests()
         local f=fixture(); f.Shoot(0,vec(0/0,0,0)); f.Shoot(0,"fake"); eq(f.Hum.Health,200); eq(f.Service.Weapons:get(101,0).Ammo,5)
     end)
     test("production handler rejects outside-arena attackers",function()
-        local f=fixture(); f.Root.Position=vec(0,75,-650); f.Head.Position=vec(0,76,-650); f.Shoot(); eq(f.Hum.Health,200)
+        local f=fixture(); f.Root.Position=vec(Config.Holding.X,Config.Holding.Y+5,Config.Holding.Z)
+        f.Head.Position=f.Root.Position+vec(0,1,0); f.Shoot(); eq(f.Hum.Health,200)
     end)
     test("production handler rejects displaced head origins",function()
         local f=fixture(); f.Head.Position=vec(0,6,-200); f.Shoot(); eq(f.Hum.Health,200)
@@ -311,6 +312,7 @@ for _, path in ipairs({
     "src/server/BattleServer/StudioPreview.luau", "src/client/StudioPractice.client.luau",
     "src/server/BattleServer/Combat.luau", "src/server/BattleServer/World.luau",
     "src/server/BattleServer/ArenaArchitecture.luau", "src/server/BattleServer/ArenaDetails.luau",
+    "src/server/BattleServer/HighGround.luau",
     "src/server/BattleServer/MatchState.luau", "src/server/BattleServer/WeaponState.luau",
     "src/server/BattleServer/BrainrotSculptures.luau", "src/client/Battle.client.luau",
 }) do

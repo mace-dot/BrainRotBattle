@@ -87,4 +87,28 @@ return function(test, eq, Config, Layout)
             eq(built.Spawn.Position.Y,4)
         end
     end)
+    test("engine spawn is inside the base rather than a fallback sky spawn",function()
+        local spawn=built.SpawnLocation
+        eq(spawn.ClassName,"SpawnLocation")
+        eq(spawn.CFrame.Position.X,0); eq(spawn.CFrame.Position.Z,-10)
+        assert(spawn.CFrame.Position.Y<1)
+        eq(spawn.Neutral,true); eq(spawn.AllowTeamChangeOnTouch,false)
+        eq(spawn.CanCollide,false); eq(spawn.Duration,0)
+    end)
+    local HighGround=assert(loadfile("src/server/BattleServer/HighGround.luau","t",env))()
+    test("limited high ground stays away from bases and within the island",function()
+        local counts={Tower=0,Tree=0}
+        for _,point in ipairs(HighGround.locations(Config)) do
+            counts[point.Kind]=counts[point.Kind]+1
+            assert(math.abs(point.X)+point.Clearance<Config.ArenaSize/2)
+            assert(math.abs(point.Z)+point.Clearance<Config.ArenaSize/2)
+            eq(HighGround.clearOfClimbs(Config,point),false)
+            for i=1,#Config.Characters do
+                local b=Layout.base(Config,i)
+                assert((point.X-b.X)^2+(point.Z-b.Z)^2>(point.Clearance+46)^2)
+            end
+        end
+        eq(counts.Tower,4); eq(counts.Tree,2)
+        eq(HighGround.clearOfClimbs(Config,{X=0,Z=0}),true)
+    end)
 end

@@ -38,10 +38,11 @@ function Details.center(parent,part)
     end
 end
 
-function Details.sector(parent,angle,part)
+function Details.sector(parent,angle,part,config)
     local model=Instance.new("Model"); model.Name="ForestSector"; model.Parent=parent
     local a=angle+math.pi/8
-    local origin=CFrame.new(math.cos(a)*215,0,math.sin(a)*215)*CFrame.Angles(0,-a,0)
+    local campRadius=config.BaseRadius*0.64
+    local origin=CFrame.new(math.cos(a)*campRadius,0,math.sin(a)*campRadius)*CFrame.Angles(0,-a,0)
     -- Broken stone arch, camp and crates create usable cover off the main trail.
     for _, side in ipairs({-1,1}) do
         part(model,"RuinedArchPier",Vector3.new(5,15,5),origin*CFrame.new(side*10,7.5,0),stone,Enum.Material.Cobblestone)
@@ -64,8 +65,8 @@ function Details.sector(parent,angle,part)
         part(model,"MarshSteppingStone",Vector3.new(5,0.6,4),origin*CFrame.new(42+(n%2)*2,0.3,-38+n*6),stone,Enum.Material.Rock)
     end
     -- Small clustered detail stays non-colliding and out of weapon raycasts.
-    for ring=1,4 do
-        local radius=65+ring*64
+    for ring=1,7 do
+        local radius=65+ring*(config.BaseRadius-80)/7
         local cf=CFrame.new(math.cos(a)*radius,0,math.sin(a)*radius)*CFrame.Angles(0,-a,0)
         for n=1,6 do
             local patch=cf*CFrame.new((n%3-1)*18,0,math.floor((n-1)/3)*25-12)
@@ -86,7 +87,8 @@ function Details.sector(parent,angle,part)
     -- Outlying cliff stacks frame the arena beyond the forts.
     for n=1,5 do
         local t=a+(n-3)*0.06
-        local cf=CFrame.new(math.cos(t)*406,0,math.sin(t)*406)*CFrame.Angles(0,-t,0)
+        local radius=config.ArenaSize/2-44
+        local cf=CFrame.new(math.cos(t)*radius,0,math.sin(t)*radius)*CFrame.Angles(0,-t,0)
         local height=15+(n%3)*5
         part(model,"OuterCliff",Vector3.new(22,height,15),cf*CFrame.new(0,height/2,0),stone,Enum.Material.Rock)
         part(model,"CliffMoss",Vector3.new(23,0.5,16),cf*CFrame.new(0,height+0.2,0),Color3.fromRGB(64,89,48),Enum.Material.Grass)

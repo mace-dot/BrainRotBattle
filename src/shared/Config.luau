@@ -1,7 +1,7 @@
 -- PvP configuration only. No single-player progression or DataStore dependencies.
 return {
     Title = "BRAIN ROT BATTLES",
-    BuildId = "forest-three-floor-bases-20261105c",
+    BuildId = "expanded-forest-safe-practice-20261105d",
     -- One switch for all solo practice tools. The server ALSO requires IsStudio().
     StudioPracticeEnabled = true,
     PlayerHealth = 200,
@@ -17,9 +17,9 @@ return {
     RespawnDelay = 3,
     SpawnProtection = 3,
     WalkSpeed = 20,
-    ArenaSize = 900,
-    BaseRadius = 330,
-    Holding = { X = 0, Y = 70, Z = -650, Width = 220, Depth = 150 },
+    ArenaSize = 1300,
+    BaseRadius = 500,
+    Holding = { X = 0, Y = 70, Z = -850, Width = 220, Depth = 150 },
     -- Set actual published destination IDs to enable optional cross-game travel.
     SinglePlayerPlaceId = 0,
     BattlePlaceId = 0,
