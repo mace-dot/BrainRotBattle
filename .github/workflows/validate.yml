@@ -1,0 +1,27 @@
+name: Validate battle game
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua for isolated server rules tests
+        run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - name: Test rules, combat boundaries and Lua-compatible syntax
+        run: lua5.4 tests/run.lua
+      - uses: ok-nick/setup-aftman@v0.4.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build standalone Roblox place
+        run: |
+          mkdir -p build
+          rojo build default.project.json --output build/BrainRotBattle.rbxlx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BrainRotBattle-place
+          path: build/BrainRotBattle.rbxlx
