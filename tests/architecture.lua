@@ -47,7 +47,7 @@ return function(test, eq, Config, Layout)
     local parts,part=capture()
     local statuePlacement
     local built=Architecture.base({},Config.Characters[1],1,cf(),{},part,
-        function(_,_,position) statuePlacement=position.Position; return {} end,
+        function(_,_,position) statuePlacement=position.Position; return {GetAttribute=function() return 7 end} end,
         function() return {} end)
     test("objective and matching statue are on second floor",function()
         eq(statuePlacement.Y,17.5)
@@ -85,6 +85,14 @@ return function(test, eq, Config, Layout)
             local x,z=built.Spawn.Position.X+offset.X,built.Spawn.Position.Z+offset.Z
             assert(math.abs(x)<14 and z>=-20 and z<=0)
             eq(built.Spawn.Position.Y,4)
+            local padFound=false
+            for _,p in ipairs(parts) do
+                if p.Name=="SpawnPad" and p.Position.X==x and p.Position.Z==z then
+                    assert(p.Size.X<4 and p.Size.Z<4)
+                    padFound=true
+                end
+            end
+            assert(padFound,"spawn slot must have its own compact pad")
         end
     end)
     test("engine spawn is inside the base rather than a fallback sky spawn",function()
@@ -97,7 +105,7 @@ return function(test, eq, Config, Layout)
     end)
     local HighGround=assert(loadfile("src/server/BattleServer/HighGround.luau","t",env))()
     test("limited high ground stays away from bases and within the island",function()
-        local counts={Tower=0,Tree=0}
+        local counts={Tower=0,Bunker=0}
         for _,point in ipairs(HighGround.locations(Config)) do
             counts[point.Kind]=counts[point.Kind]+1
             assert(math.abs(point.X)+point.Clearance<Config.ArenaSize/2)
@@ -108,7 +116,50 @@ return function(test, eq, Config, Layout)
                 assert((point.X-b.X)^2+(point.Z-b.Z)^2>(point.Clearance+46)^2)
             end
         end
-        eq(counts.Tower,4); eq(counts.Tree,2)
+        eq(counts.Tower,2); eq(counts.Bunker,2)
         eq(HighGround.clearOfClimbs(Config,{X=0,Z=0}),true)
+    end)
+    local Forest=dofile("src/shared/ForestLayout.luau")
+    test("one in fifteen built trees has a vine, spread across the forest",function()
+        local sites=Forest.plan(Config,HighGround.locations(Config))
+        local vines=0
+        local quadrants={0,0,0,0}
+        for i,site in ipairs(sites) do
+            eq(site.Climbable,i%15==0)
+            assert(math.abs(site.X)+16<Config.ArenaSize/2)
+            assert(math.abs(site.Z)+16<Config.ArenaSize/2)
+            if site.Climbable then
+                vines=vines+1
+                local q=(site.X<0 and 2 or 0)+(site.Z<0 and 1 or 0)+1
+                quadrants[q]=quadrants[q]+1
+                assert(site.Height>=40)
+            end
+        end
+        eq(vines,math.floor(#sites/15))
+        assert(vines>=15,"the island needs easy-to-find climbs")
+        for _,count in ipairs(quadrants) do assert(count>=2) end
+    end)
+    test("objective bar follows health, hides for dormant bases and empties on destruction",function()
+        local token={}
+        local mockMath={}; for k,v in pairs(math) do mockMath[k]=v end
+        mockMath.clamp=function(x,lo,hi) return math.max(lo,math.min(x,hi)) end
+        local worldEnv=setmetatable({
+            game={GetService=function() return {Shared={Config=token}} end},script={Parent={}},
+            require=function(key) if key==token then return Config else return {} end end,
+            math=mockMath,Color3={fromRGB=function(r,g,b) return {r,g,b} end},
+            UDim2={fromScale=function(x,y) return {X=x,Y=y} end},
+        },{__index=_G})
+        local World=assert(loadfile("src/server/BattleServer/World.luau","t",worldEnv))()
+        local b={Team=nil,HP=0,Hitbox={SetAttribute=function() end},
+            Statue={GetChildren=function() return {} end},HealthBar={Gui={Enabled=false},Fill={}}}
+        local world=setmetatable({Bases={b}},World)
+        world:setObjective(1,1,Config.BrainrotHealth)
+        eq(b.HealthBar.Gui.Enabled,true); eq(b.HealthBar.Fill.Size.X,1)
+        world:setObjective(1,1,Config.BrainrotHealth/2)
+        eq(b.HealthBar.Fill.Size.X,0.5)
+        world:setObjective(1,1,0)
+        eq(b.HealthBar.Fill.Size.X,0); eq(b.Hitbox.CanQuery,false)
+        world:setObjective(1,nil,0)
+        eq(b.HealthBar.Gui.Enabled,false)
     end)
 end

@@ -313,6 +313,7 @@ for _, path in ipairs({
     "src/server/BattleServer/Combat.luau", "src/server/BattleServer/World.luau",
     "src/server/BattleServer/ArenaArchitecture.luau", "src/server/BattleServer/ArenaDetails.luau",
     "src/server/BattleServer/HighGround.luau",
+    "src/server/BattleServer/ForestTrees.luau", "src/shared/ForestLayout.luau",
     "src/server/BattleServer/MatchState.luau", "src/server/BattleServer/WeaponState.luau",
     "src/server/BattleServer/BrainrotSculptures.luau", "src/client/Battle.client.luau",
 }) do

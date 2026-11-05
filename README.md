@@ -94,7 +94,11 @@ The 1300×1300 arena has eight bases on a 500-stud radius, approximately 383 stu
 
 Eight longer trail/cover sectors lead to a central metal supply shelter and a ring of tribute platforms. Seven rings of branching trees and undergrowth fill the expanded island, along with ferns, mushrooms, boulders, logs, ruined arches, abandoned camps, crates, marsh stepping stones, cliffs and mossy ridges. Camps and crates are scenery/cover, not loot systems. Repeated sectors keep cover broadly balanced. Final sightlines, stair traversal, travel times, and mobile frame rate require Studio playtesting.
 
-Four small wooden lookout towers have 16-stud-high decks and native climbable ladders. Two giant trees have 27-stud-high perches, two seats each, and visible leafy vines backed by native climbing trusses. Walk into a ladder/vine and move forward to climb; leave through the opening at the top. Ordinary tree placement leaves their approaches clear. These six landmarks stream as complete models. The holding platform remains separate, north of the enlarged island at Z=-850.
+Two wooden lookout towers have 16-stud-high decks, climbable ladders and 3.25-stud parapets. Two low metal field bunkers replace the other towers, with sheltered ground floors, rear ramps and protected upper firing decks. The holding platform remains separate, north of the enlarged island at Z=-850.
+
+All trees use tapered, leaning trunks, forked branches and irregular layered foliage, with both broadleaf and conifer silhouettes. Every fifteenth tree in the deterministic forest layout gets a thick leafy vine, a ground-level **CLIMB ↑** marker, an 18-stud-high perch and a seat. Walk into the vine and move forward to climb, then step through the opening at the top. Complete trees and forts stream together. `TreeCount` and `VineTreeCount` attributes on the generated world expose the actual counts for inspection.
+
+Base statues show compact overhead health bars without names. Bars track the team objective's health, change from green to yellow/red, and hide on unoccupied bases. Base interiors include team-colored lockers, map tables, basement bedrolls, banners and lit objective surrounds. Four small pads mark the individual spawn positions. Players still respawn while their team's Brainrot survives.
 
 The holding platform is physically isolated north of the arena and enclosed by invisible collision walls. Square portals face straight inward in two rows. Character/reservation signs use world-space dimensions with a 22-pixel text ceiling, shrinking with distance instead of dominating the screen when zoomed out. A short-range native join prompt avoids duplicating the character title. The central **BRAIN ROT BATTLES** sign and on-screen team HUD retain their existing sizing. There is no active single-player portal unless an optional external destination is configured.
 
@@ -109,7 +113,9 @@ The holding platform is physically isolated north of the arena and enclosed by i
 | `src/server/BattleServer/World.luau` | Holding space, eight selection portals, forest, bases and objective hitboxes |
 | `src/server/BattleServer/ArenaArchitecture.luau` | Excavated ground, three-floor forts, stairs, upstairs objectives |
 | `src/server/BattleServer/ArenaDetails.luau` | Central supply shelter and repeated forest/camp dressing |
-| `src/server/BattleServer/HighGround.luau` | Four small lookouts, two giant climbable trees, foliage clearance |
+| `src/server/BattleServer/HighGround.luau` | Two small lookouts and two metal field bunkers |
+| `src/server/BattleServer/ForestTrees.luau` | Varied tree geometry, visible vines, perches and seats |
+| `src/shared/ForestLayout.luau` | Deterministic forest layout and one-in-fifteen climb distribution |
 | `src/server/BattleServer/BrainrotSculptures.luau` | Detailed procedural character visuals shared by portals and bases |
 | `src/shared/Config.luau` | PvP balance and destination configuration |
 | `src/shared/Layout.luau` | Scalar map geometry and bounds |

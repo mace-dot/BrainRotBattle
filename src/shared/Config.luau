@@ -1,7 +1,7 @@
 -- PvP configuration only. No single-player progression or DataStore dependencies.
 return {
     Title = "BRAIN ROT BATTLES",
-    BuildId = "expanded-forest-safe-practice-20261105d",
+    BuildId = "vine-forest-bunkers-healthbars-20261105e",
     -- One switch for all solo practice tools. The server ALSO requires IsStudio().
     StudioPracticeEnabled = true,
     PlayerHealth = 200,

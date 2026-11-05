@@ -43,16 +43,19 @@ The portable suite also exercises the actual practice controller/state and the g
 - Set the flag false and restart Play: no panel or practice remote. On a published server, practice must remain unavailable even with the flag true.
 - While Studio is stopped, run the documented preview build twice, frame the map, and remove it. Verify no duplicate geometry or interactive prompts and no changes to unrelated objects/lighting. Press Play with a generated preview present; only one gameplay world should remain.
 
-Rojo and Roblox Studio are not installed in the task container; local validation uses Lua-compatible compilation and deterministic rules/boundary tests. Run the workflow's Rojo build and this manual checklist before claiming engine verification.
+The portable tests exercise rules and mocked engine boundaries. A successful Rojo build packages the place but does not prove engine behavior. Complete this manual checklist before claiming engine verification.
 # Three-floor arena and selection-area checks
 
 - Start solo practice from each chosen portal: spawn inside that base's ground floor, with 200 HP. Repeat Reset Objectives, Respawn and Switch Base, including quick repeated actions during character loading; check that there is no sky spawn or immediate bounds death.
 - Traverse the enlarged island to the outer bases; no old boundary wall should cut through the map. The holding platform must remain outside the combat area.
-- Climb all four lookout ladders and both giant-tree vines. Step onto each deck through its opening, descend again, and sit on each tree's seats. Check touch/controller climbing and that streamed platforms appear with their climb.
+- Check the two lookouts and two low metal bunkers. Climb the ladders and rear bunker ramps; verify the raised walls provide cover while allowing shots over the top.
+- Locate vine trees across all four quadrants using their bright stems and **CLIMB ↑** markers. Compare the world's `VineTreeCount` to `math.floor(TreeCount/15)`. Climb, step onto the perch, sit and descend; test touch/controller input and streamed access.
+- Check that all tree types use the new trunks/branching foliage; inspect mobile frame rate with the denser silhouettes.
 
 - Restart Play after syncing the updated source. Check the eight character signs at normal camera distance and while zooming out: they should recede with the portals, with no oversized reservation panel. The existing team HUD should be unchanged.
 - Check the straight portal rows and each detailed character. Walk-in selection and the nearby E/touch/controller prompt should still reserve a seat.
 - Jump against all four holding-platform edges and corners, including from a portal frame: the invisible border should keep the avatar on the platform.
 - In solo practice, use each base in turn. From the ground floor, take the left staircase to the basement and the right staircase to the second floor; check headroom and both landings in each direction.
-- Check the corresponding character and 50-HP objective upstairs. Test bat/sniper hits, friendly-fire protection, destruction, and respawning at all four ground-floor spawn slots.
+- Check the corresponding character and health bar upstairs, with no title. Damage it and check bar fill/color; check an empty bar on destruction and no bar on dormant objectives. Test friendly-fire protection and respawning at all four smaller ground-floor pads.
+- Walk around the lockers, map table and bedrolls; stairs, spawn positions and access to the upstairs objective must remain clear.
 - Inspect the central supply shelter, ruins, camps and forest cover. Check frame rate on a mobile device; decorative foliage should not block movement or weapon rays.
