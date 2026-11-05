@@ -5,6 +5,8 @@ local Sculptures = require(script.Parent.BrainrotSculptures)
 local Architecture = require(script.Parent.ArenaArchitecture)
 local Details = require(script.Parent.ArenaDetails)
 local HighGround = require(script.Parent.HighGround)
+local ForestLayout = require(Shared.ForestLayout)
+local ForestTrees = require(script.Parent.ForestTrees)
 local World = {}
 World.__index = World
 
@@ -56,16 +58,40 @@ local function label(anchor, text, color, width, height, distance, worldSized)
     return t
 end
 
+local function healthBar(anchor)
+    local gui = Instance.new("BillboardGui")
+    gui.Name = "ObjectiveHealth"
+    gui.Size = UDim2.fromOffset(90, 9)
+    gui.AlwaysOnTop = false
+    gui.LightInfluence = 0
+    gui.MaxDistance = 100
+    gui.Enabled = false
+    gui.Parent = anchor
+    local track = Instance.new("Frame")
+    track.Size = UDim2.fromScale(1, 1)
+    track.BackgroundColor3 = Color3.fromRGB(25, 29, 26)
+    track.BorderSizePixel = 0
+    track.Parent = gui
+    local fill = Instance.new("Frame")
+    fill.Name = "HealthFill"
+    fill.Size = UDim2.fromScale(1, 1)
+    fill.BackgroundColor3 = Color3.fromRGB(88, 211, 107)
+    fill.BorderSizePixel = 0
+    fill.Parent = track
+    return {Gui = gui, Fill = fill}
+end
+
 local function sculpture(parent, name, cf, scale)
     local model = Instance.new("Model")
     model.Name = name
     local specs = Sculptures.specs(name, scale)
     -- Rest each different silhouette on its pedestal instead of floating above it.
-    local minY = math.huge
+    local minY, maxY = math.huge, -math.huge
     for _, spec in ipairs(specs) do
         local r,u,l = spec.Offset.RightVector,spec.Offset.UpVector,spec.Offset.LookVector
         local half = (math.abs(r.Y)*spec.Size.X + math.abs(u.Y)*spec.Size.Y + math.abs(l.Y)*spec.Size.Z)/2
         minY = math.min(minY, spec.Offset.Position.Y-half)
+        maxY = math.max(maxY, spec.Offset.Position.Y+half)
     end
     for _, spec in ipairs(specs) do
         local p = part(model, spec.Name, spec.Size, cf * CFrame.new(0, -minY, 0) * spec.Offset, spec.Color, spec.Material)
@@ -73,6 +99,7 @@ local function sculpture(parent, name, cf, scale)
         p.CanCollide = false
         p.CanQuery = false
     end
+    model:SetAttribute("VisualHeight", maxY-minY)
     model.Parent = parent
     return model
 end
@@ -114,40 +141,19 @@ function World.new(onSelect, onExit)
     return self
 end
 
-function World:tree(cf, height, variant)
-    if not HighGround.clearOfClimbs(Config, cf.Position) then return end
-    local trunk = part(self.Model, "TreeTrunk", Vector3.new(4, height, 4), cf * CFrame.new(0, height/2, 0), wood, Enum.Material.Wood)
-    trunk.Shape = Enum.PartType.Cylinder
-    trunk.CFrame = trunk.CFrame * CFrame.Angles(0, 0, math.pi/2)
-    trunk.Size = Vector3.new(height, 4, 4)
-    local crown = part(self.Model, "Canopy", Vector3.new(21, 15, 21), cf * CFrame.new(0, height+1, 0),
-        variant == 1 and Color3.fromRGB(46, 98, 58) or Color3.fromRGB(68, 127, 64), Enum.Material.Grass)
-    crown.Shape = Enum.PartType.Ball
-    crown.CanCollide = false
-    crown.CanQuery = false
-    for n = 1,3 do
-        local angle = n*math.pi*2/3 + variant
-        local branch = part(self.Model, "TreeBranch", Vector3.new(9,1.5,1.5),
-            cf*CFrame.new(math.cos(angle)*4,height*0.75,math.sin(angle)*4)*CFrame.Angles(0,-angle,0.35),wood,Enum.Material.Wood)
-        branch.CanCollide = false
-        branch.CanQuery = false
-        local leaves = part(self.Model,"CanopyCluster",Vector3.new(13,11,13),
-            cf*CFrame.new(math.cos(angle)*7,height-1+n,math.sin(angle)*7),Color3.fromRGB(42+n*5,85+n*9,46),Enum.Material.Grass)
-        leaves.Shape = Enum.PartType.Ball
-        leaves.CanCollide = false
-        leaves.CanQuery = false
-        local root = part(self.Model,"TreeRoot",Vector3.new(7,1,1.5),
-            cf*CFrame.new(math.cos(angle)*2.5,0.5,math.sin(angle)*2.5)*CFrame.Angles(0,-angle,0),wood,Enum.Material.Wood)
-        root.CanCollide = false
-        root.CanQuery = false
-    end
-end
-
 function World:arena()
     local m = self.Model
     Architecture.ground(m, Config, Layout, part)
     Details.center(m, part)
     HighGround.build(m, Config, part)
+    local trees = ForestLayout.plan(Config, HighGround.locations(Config))
+    local climbCount = 0
+    for _, site in ipairs(trees) do
+        ForestTrees.build(m, site, part)
+        if site.Climbable then climbCount = climbCount+1 end
+    end
+    m:SetAttribute("TreeCount", #trees)
+    m:SetAttribute("VineTreeCount", climbCount)
     -- Low outer ridges keep the arena legible without invisible movement barriers.
     for _, sign in ipairs({-1, 1}) do
         local edge = Config.ArenaSize/2-4
@@ -158,7 +164,7 @@ function World:arena()
         local layout = Layout.base(Config, i)
         local color = Color3.fromHex(def.Color)
         local cf = CFrame.new(layout.X, 0, layout.Z) * CFrame.Angles(0, layout.Yaw, 0)
-        self.Bases[i] = Architecture.base(m, def, i, cf, color, part, sculpture, label)
+        self.Bases[i] = Architecture.base(m, def, i, cf, color, part, sculpture, healthBar)
         Details.sector(m, layout.Angle, part, Config)
         -- Eight equal paths and eight repeated cover sectors provide balanced travel.
         local trailCount = math.ceil((Config.BaseRadius-95)/37)
@@ -173,23 +179,6 @@ function World:arena()
                 part(m, "FallenLog", Vector3.new(20, 4, 5), pathCF*CFrame.new(-offset*27, 2, 8)*CFrame.Angles(0, 0.3, 0), wood, Enum.Material.Wood)
                 part(m, "Stump", Vector3.new(5, 4, 5), pathCF*CFrame.new(-offset*39, 2, -7), wood, Enum.Material.Wood)
             end
-        end
-        for ring = 1, 7 do
-            local radius = 55 + ring*(Config.BaseRadius-90)/7
-            local angle = layout.Angle + math.pi/8
-            local forest = CFrame.new(math.cos(angle)*radius, 0, math.sin(angle)*radius)
-            self:tree(forest, 19+ring*3, ring%2)
-            self:tree(forest*CFrame.new(13, 0, 12), 17+ring*2, (ring+1)%2)
-            self:tree(forest*CFrame.new(-12, 0, -10), 22+ring, ring%2)
-            -- Spread additional groves across the widened sectors, away from trails.
-            for _, side in ipairs({-1,1}) do
-                local groveAngle = angle+side*0.11
-                self:tree(CFrame.new(math.cos(groveAngle)*radius,0,math.sin(groveAngle)*radius),22+(ring%4)*5,ring%2)
-            end
-            local bush = part(m, "Bush", Vector3.new(10, 4, 8), forest*CFrame.new(15, 2, -12), Color3.fromRGB(62, 104, 53), Enum.Material.Grass)
-            bush.Shape = Enum.PartType.Ball
-            bush.CanCollide = false
-            bush.CanQuery = false
         end
         -- Shallow terraced ridges with walkable 1-stud steps; floor between them is a depression.
         local angle = layout.Angle + math.pi/8
@@ -303,8 +292,11 @@ function World:setObjective(index, team, hp)
     for _, p in ipairs(base.Statue:GetChildren()) do
         p.Transparency = (not team or hp > 0) and 0 or 0.78
     end
-    local def = Config.Characters[index]
-    base.Label.Text = def.Name .. "\n" .. (not team and "UNOCCUPIED" or (hp > 0 and (hp .. " / 50 TEAM HP") or "DESTROYED • NO RESPAWNS"))
+    local ratio = math.clamp(hp/Config.BrainrotHealth, 0, 1)
+    base.HealthBar.Gui.Enabled = team ~= nil
+    base.HealthBar.Fill.Size = UDim2.fromScale(ratio, 1)
+    base.HealthBar.Fill.BackgroundColor3 = ratio > 0.5 and Color3.fromRGB(88,211,107)
+        or (ratio > 0.25 and Color3.fromRGB(239,192,72) or Color3.fromRGB(222,74,65))
 end
 
 function World:update(state, now)

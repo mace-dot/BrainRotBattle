@@ -1,7 +1,7 @@
 -- Shared scalar geometry; also exercised without Roblox in the test runner.
 local Layout = {}
 function Layout.spawnOffset(slot)
-    return { X = ((slot-1)%2 == 0 and -7 or 7), Z = (math.floor((slot-1)/2) == 0 and -5 or 5) }
+    return { X = ((slot-1)%2 == 0 and -3 or 3), Z = (math.floor((slot-1)/2) == 0 and -3 or 3) }
 end
 function Layout.base(config, index)
     local angle = -math.pi / 2 + (index - 1) * math.pi * 2 / #config.Characters

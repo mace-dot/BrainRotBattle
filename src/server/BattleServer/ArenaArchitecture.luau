@@ -49,7 +49,7 @@ function Architecture.ground(parent, config, layout, part)
     end
 end
 
-function Architecture.base(parent, def, index, cf, color, part, sculpture, label)
+function Architecture.base(parent, def, index, cf, color, part, sculpture, healthBar)
     local base = Instance.new("Model")
     base.Name = def.Id .. "Base"
     base.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
@@ -113,17 +113,53 @@ function Architecture.base(parent, def, index, cf, color, part, sculpture, label
         end
     end
     block("TeamBanner",Vector3.new(8,6,0.3),Vector3.new(0,24,30),color,Enum.Material.Fabric)
+    -- Team headquarters details stay against the back wall, clear of both stairs.
+    block("CommandTable",Vector3.new(8,0.6,4),Vector3.new(0,3.2,24),wood,Enum.Material.WoodPlanks)
+    for _, x in ipairs({-3,3}) do
+        block("TableLeg",Vector3.new(0.6,3,3),Vector3.new(x,1.5,24),dark,Enum.Material.Metal)
+    end
+    block("MapBoard",Vector3.new(6,0.08,3),Vector3.new(0,3.55,24),Color3.fromRGB(150,159,117),Enum.Material.Fabric)
+    for n=1,4 do
+        block("MapMarker",Vector3.new(0.3,0.3,0.3),Vector3.new((n-2.5)*1.1,3.74,24+(n%2-0.5)),color,Enum.Material.Neon)
+    end
+    for _,side in ipairs({-1,1}) do
+        block("EquipmentLocker",Vector3.new(5,7,2.5),Vector3.new(side*18,3.5,28),dark,Enum.Material.Metal)
+        block("LockerPanel",Vector3.new(4.4,5.8,0.15),Vector3.new(side*18,3.6,26.65),color,Enum.Material.Metal)
+        block("LockerHandle",Vector3.new(0.15,1,0.2),Vector3.new(side*18+1.4,3.6,26.5),stone,Enum.Material.Metal)
+        for n=1,3 do
+            block("LockerVent",Vector3.new(3,0.1,0.15),Vector3.new(side*18,5.2+n*0.3,26.5),dark,Enum.Material.Metal)
+        end
+        block("BasementBench",Vector3.new(5,0.5,3),Vector3.new(side*19,-10,25),wood,Enum.Material.WoodPlanks)
+        block("BenchSupport",Vector3.new(4,2,1),Vector3.new(side*19,-11,25),dark)
+        block("BunkFrame",Vector3.new(6,0.5,8),Vector3.new(side*10,-10.8,-23),wood,Enum.Material.WoodPlanks)
+        block("Bedroll",Vector3.new(5.4,0.5,7),Vector3.new(side*10,-10.3,-23),color,Enum.Material.Fabric)
+        block("Pillow",Vector3.new(4.2,0.4,1.6),Vector3.new(side*10,-9.85,-25.5),Color3.fromRGB(179,177,150),Enum.Material.Fabric)
+        block("UpperBanner",Vector3.new(5,6,0.2),Vector3.new(side*18,25,30),color,Enum.Material.Fabric)
+        block("DisplayFrame",Vector3.new(6,0.4,0.6),Vector3.new(side*18,28.2,29.9),wood,Enum.Material.Wood)
+    end
+    block("BasementRunner",Vector3.new(8,0.06,30),Vector3.new(0,-11.96,0),color,Enum.Material.Fabric)
+    block("GroundRunner",Vector3.new(6,0.06,20),Vector3.new(0,0.04,9),color,Enum.Material.Fabric)
+    -- Inset ritual floor and low lights frame the upstairs Brainrot without walls
+    -- that would prevent bat hits or obstruct the stair landing.
+    block("ObjectiveInlay",Vector3.new(18,0.08,16),Vector3.new(0,16.05,18),dark,Enum.Material.Metal)
+    for _,side in ipairs({-1,1}) do
+        block("ObjectiveLight",Vector3.new(0.3,0.12,15),Vector3.new(side*8.5,16.12,18),color,Enum.Material.Neon)
+    end
     block("BrainrotPedestal",Vector3.new(14,1.5,12),Vector3.new(0,16.75,18),color)
     local statue = sculpture(base,def.Name,cf*CFrame.new(0,17.5,18),1.6)
     local hit = block("ObjectiveHitbox",Vector3.new(9,9,10),Vector3.new(0,22,18),color)
     hit.Transparency = 1; hit.CanCollide = false; hit.CanQuery = false
     hit:SetAttribute("ObjectiveBase",index)
-    local anchor = block("ObjectiveSign",Vector3.one,Vector3.new(0,27.3,18),color)
+    local anchor = block("ObjectiveHealthAnchor",Vector3.one,Vector3.new(0,18.2+statue:GetAttribute("VisualHeight"),18),color)
     anchor.Transparency = 1; anchor.CanCollide = false; anchor.CanQuery = false
-    local status = label(anchor,def.Name .. "\nUNOCCUPIED",color,18,3.5,130,true)
-    block("SpawnPad",Vector3.new(22,0.12,18),Vector3.new(0,0.06,-10),color,Enum.Material.Neon)
+    local status = healthBar(anchor)
+    for _,x in ipairs({-3,3}) do
+        for _,z in ipairs({-13,-7}) do
+            block("SpawnPad",Vector3.new(3.6,0.12,3.6),Vector3.new(x,0.06,z),color,Enum.Material.Neon)
+        end
+    end
     local spawnLocation = Architecture.spawnLocation(base, cf*CFrame.new(0,0.22,-10))
-    return {Model=base,Spawn=cf*CFrame.new(0,4,-10),SpawnLocation=spawnLocation,Hitbox=hit,Statue=statue,Label=status,Team=nil,HP=0}
+    return {Model=base,Spawn=cf*CFrame.new(0,4,-10),SpawnLocation=spawnLocation,Hitbox=hit,Statue=statue,HealthBar=status,Team=nil,HP=0}
 end
 
 return Architecture
