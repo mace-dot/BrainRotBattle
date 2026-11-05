@@ -44,3 +44,11 @@ The portable suite also exercises the actual practice controller/state and the g
 - While Studio is stopped, run the documented preview build twice, frame the map, and remove it. Verify no duplicate geometry or interactive prompts and no changes to unrelated objects/lighting. Press Play with a generated preview present; only one gameplay world should remain.
 
 Rojo and Roblox Studio are not installed in the task container; local validation uses Lua-compatible compilation and deterministic rules/boundary tests. Run the workflow's Rojo build and this manual checklist before claiming engine verification.
+# Three-floor arena and selection-area checks
+
+- Restart Play after syncing the updated source. Check the eight character signs at normal camera distance and while zooming out: they should recede with the portals, with no oversized reservation panel. The existing team HUD should be unchanged.
+- Check the straight portal rows and each detailed character. Walk-in selection and the nearby E/touch/controller prompt should still reserve a seat.
+- Jump against all four holding-platform edges and corners, including from a portal frame: the invisible border should keep the avatar on the platform.
+- In solo practice, use each base in turn. From the ground floor, take the left staircase to the basement and the right staircase to the second floor; check headroom and both landings in each direction.
+- Check the corresponding character and 50-HP objective upstairs. Test bat/sniper hits, friendly-fire protection, destruction, and respawning at all four ground-floor spawn slots.
+- Inspect the central supply shelter, ruins, camps and forest cover. Check frame rate on a mobile device; decorative foliage should not block movement or weapon rays.

@@ -302,6 +302,7 @@ local function combatTests()
 end
 combatTests()
 dofile("tests/practice.lua")(test, eq, Config, Match)
+dofile("tests/architecture.lua")(test, eq, Config, Layout)
 
 -- Compilation catches accidental syntax errors even in engine-dependent scripts.
 for _, path in ipairs({
@@ -309,6 +310,7 @@ for _, path in ipairs({
     "src/server/BattleServer/PracticeState.luau", "src/server/BattleServer/StudioPractice.luau",
     "src/server/BattleServer/StudioPreview.luau", "src/client/StudioPractice.client.luau",
     "src/server/BattleServer/Combat.luau", "src/server/BattleServer/World.luau",
+    "src/server/BattleServer/ArenaArchitecture.luau", "src/server/BattleServer/ArenaDetails.luau",
     "src/server/BattleServer/MatchState.luau", "src/server/BattleServer/WeaponState.luau",
     "src/server/BattleServer/BrainrotSculptures.luau", "src/client/Battle.client.luau",
 }) do

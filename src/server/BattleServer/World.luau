@@ -2,6 +2,8 @@ local Shared = game:GetService("ReplicatedStorage").Shared
 local Config = require(Shared.Config)
 local Layout = require(Shared.Layout)
 local Sculptures = require(script.Parent.BrainrotSculptures)
+local Architecture = require(script.Parent.ArenaArchitecture)
+local Details = require(script.Parent.ArenaDetails)
 local World = {}
 World.__index = World
 
@@ -20,12 +22,13 @@ local function part(parent, name, size, cf, color, material)
     return p
 end
 
-local function label(anchor, text, color, width, height, distance)
+local function label(anchor, text, color, width, height, distance, worldSized)
     local gui = Instance.new("BillboardGui")
     gui.Name = "ReadableSign"
-    gui.Size = UDim2.fromOffset(width or 320, height or 100)
-    gui.StudsOffsetWorldSpace = Vector3.new(0, 5, 0)
-    gui.AlwaysOnTop = true
+    -- World-sized character signs recede with the portal when the camera zooms out.
+    gui.Size = worldSized and UDim2.fromScale(width, height) or UDim2.fromOffset(width or 320, height or 100)
+    gui.StudsOffsetWorldSpace = Vector3.new(0, worldSized and 0 or 5, 0)
+    gui.AlwaysOnTop = not worldSized
     gui.LightInfluence = 0
     gui.MaxDistance = distance or 280
     gui.Parent = anchor
@@ -43,8 +46,8 @@ local function label(anchor, text, color, width, height, distance)
     t.Text = text
     t.Parent = gui
     local cap = Instance.new("UITextSizeConstraint")
-    cap.MaxTextSize = 38
-    cap.MinTextSize = 10
+    cap.MaxTextSize = worldSized and 22 or 38
+    cap.MinTextSize = worldSized and 1 or 10
     cap.Parent = t
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 10)
@@ -56,8 +59,15 @@ local function sculpture(parent, name, cf, scale)
     local model = Instance.new("Model")
     model.Name = name
     local specs = Sculptures.specs(name, scale)
+    -- Rest each different silhouette on its pedestal instead of floating above it.
+    local minY = math.huge
     for _, spec in ipairs(specs) do
-        local p = part(model, spec.Name, spec.Size, cf * spec.Offset, spec.Color, spec.Material)
+        local r,u,l = spec.Offset.RightVector,spec.Offset.UpVector,spec.Offset.LookVector
+        local half = (math.abs(r.Y)*spec.Size.X + math.abs(u.Y)*spec.Size.Y + math.abs(l.Y)*spec.Size.Z)/2
+        minY = math.min(minY, spec.Offset.Position.Y-half)
+    end
+    for _, spec in ipairs(specs) do
+        local p = part(model, spec.Name, spec.Size, cf * CFrame.new(0, -minY, 0) * spec.Offset, spec.Color, spec.Material)
         p.Shape = spec.Shape or Enum.PartType.Block
         p.CanCollide = false
         p.CanQuery = false
@@ -92,12 +102,12 @@ end
 function World.new(onSelect, onExit)
     local self = World.build(workspace, { OnSelect = onSelect, OnExit = onExit })
     local lighting = game:GetService("Lighting")
-    lighting.ClockTime = 15
-    lighting.Brightness = 2.5
+    lighting.ClockTime = 16.4
+    lighting.Brightness = 2
     lighting.Ambient = Color3.fromRGB(115, 135, 121)
     lighting.OutdoorAmbient = Color3.fromRGB(145, 155, 142)
     local atmosphere = lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
-    atmosphere.Density = 0.22
+    atmosphere.Density = 0.28
     atmosphere.Color = Color3.fromRGB(197, 222, 199)
     atmosphere.Parent = lighting
     return self
@@ -112,56 +122,40 @@ function World:tree(cf, height, variant)
         variant == 1 and Color3.fromRGB(46, 98, 58) or Color3.fromRGB(68, 127, 64), Enum.Material.Grass)
     crown.Shape = Enum.PartType.Ball
     crown.CanCollide = false
+    crown.CanQuery = false
+    for n = 1,3 do
+        local angle = n*math.pi*2/3 + variant
+        local branch = part(self.Model, "TreeBranch", Vector3.new(9,1.5,1.5),
+            cf*CFrame.new(math.cos(angle)*4,height*0.75,math.sin(angle)*4)*CFrame.Angles(0,-angle,0.35),wood,Enum.Material.Wood)
+        branch.CanCollide = false
+        branch.CanQuery = false
+        local leaves = part(self.Model,"CanopyCluster",Vector3.new(13,11,13),
+            cf*CFrame.new(math.cos(angle)*7,height-1+n,math.sin(angle)*7),Color3.fromRGB(42+n*5,85+n*9,46),Enum.Material.Grass)
+        leaves.Shape = Enum.PartType.Ball
+        leaves.CanCollide = false
+        leaves.CanQuery = false
+        local root = part(self.Model,"TreeRoot",Vector3.new(7,1,1.5),
+            cf*CFrame.new(math.cos(angle)*2.5,0.5,math.sin(angle)*2.5)*CFrame.Angles(0,-angle,0),wood,Enum.Material.Wood)
+        root.CanCollide = false
+        root.CanQuery = false
+    end
 end
 
 function World:arena()
     local m = self.Model
-    part(m, "WildernessFloor", Vector3.new(Config.ArenaSize, 6, Config.ArenaSize), CFrame.new(0, -3, 0), grass, Enum.Material.Grass)
+    Architecture.ground(m, Config, Layout, part)
+    Details.center(m, part)
     -- Low outer ridges keep the arena legible without invisible movement barriers.
     for _, sign in ipairs({-1, 1}) do
         part(m, "BoundaryRidge", Vector3.new(Config.ArenaSize, 20, 8), CFrame.new(0, 8, sign*446), stone, Enum.Material.Slate)
         part(m, "BoundaryRidge", Vector3.new(8, 20, Config.ArenaSize), CFrame.new(sign*446, 8, 0), stone, Enum.Material.Slate)
     end
-    local center = part(m, "CornucopiaClearing", Vector3.new(65, 0.3, 65), CFrame.new(0, 0.15, 0), Color3.fromRGB(145, 128, 88), Enum.Material.Ground)
-    label(center, "THE CLEARING", Color3.fromRGB(255, 227, 138), 240, 44, 130)
-    part(m, "AncientBeacon", Vector3.new(7, 18, 7), CFrame.new(0, 9, 0), stone, Enum.Material.Slate)
-    part(m, "BeaconFire", Vector3.new(4, 4, 4), CFrame.new(0, 20, 0), Color3.fromRGB(255, 181, 62), Enum.Material.Neon)
     for i, def in ipairs(Config.Characters) do
         local layout = Layout.base(Config, i)
         local color = Color3.fromHex(def.Color)
-        local cf = CFrame.lookAt(Vector3.new(layout.X, 0, layout.Z), Vector3.new(0, 0, 0))
-        local base = Instance.new("Model")
-        base.Name = def.Id .. "Base"
-        base.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
-        base.Parent = m
-        local function block(name, size, offset, c, material)
-            return part(base, name, size, cf * CFrame.new(offset), c or stone, material or Enum.Material.Slate)
-        end
-        block("Foundation", Vector3.new(60, 1, 58), Vector3.new(0, 0, 0))
-        block("ColorTrim", Vector3.new(60, 0.3, 2), Vector3.new(0, 0.7, -28), color, Enum.Material.Neon)
-        block("RearWall", Vector3.new(60, 15, 3), Vector3.new(0, 7.5, 28))
-        block("ShelterRoof", Vector3.new(60, 2, 30), Vector3.new(0, 16, 13))
-        for _, side in ipairs({-1, 1}) do
-            block("SideShelter", Vector3.new(3, 14, 30), Vector3.new(side*29, 7, 13))
-            -- Offset front cover protects spawns while leaving flanking entrances.
-            block("SpawnScreen", Vector3.new(10, 9, 3), Vector3.new(side*24, 4.5, -18))
-        end
-        block("FrontCover", Vector3.new(14, 9, 3), Vector3.new(0, 4.5, -19))
-        block("BrainrotPedestal", Vector3.new(14, 1.5, 12), Vector3.new(0, 1, 17), color)
-        local statue = sculpture(base, def.Name, cf * CFrame.new(0, 1.8, 17), 1.6)
-        local hit = block("ObjectiveHitbox", Vector3.new(9, 9, 10), Vector3.new(0, 6, 17), color)
-        hit.Transparency = 1
-        hit.CanCollide = false
-        hit.CanQuery = false
-        hit:SetAttribute("ObjectiveBase", i)
-        local signPart = block("ObjectiveSign", Vector3.new(1, 1, 1), Vector3.new(0, 11, 17), color)
-        signPart.Transparency = 1
-        signPart.CanCollide = false
-        signPart.CanQuery = false
-        local status = label(signPart, def.Name .. "\nUNOCCUPIED", color, 260, 75, 130)
-        local spawn = cf * CFrame.new(0, 4, -6)
-        block("SpawnPad", Vector3.new(9, 0.2, 9), Vector3.new(0, 0.7, -6), color, Enum.Material.Neon)
-        self.Bases[i] = { Model = base, Spawn = spawn, Hitbox = hit, Statue = statue, Label = status, Team = nil, HP = 0 }
+        local cf = CFrame.new(layout.X, 0, layout.Z) * CFrame.Angles(0, layout.Yaw, 0)
+        self.Bases[i] = Architecture.base(m, def, i, cf, color, part, sculpture, label)
+        Details.sector(m, layout.Angle, part)
         -- Eight equal paths and eight repeated cover sectors provide balanced travel.
         for n = 1, 6 do
             local distance = 40 + n * 37
@@ -209,6 +203,18 @@ function World:holding(onSelect, onExit)
         part(room, "Railing", Vector3.new(h.Width, 5, 2), CFrame.new(h.X, h.Y+2.5, h.Z+sign*h.Depth/2), stone)
         part(room, "Railing", Vector3.new(2, 5, h.Depth), CFrame.new(h.X+sign*h.Width/2, h.Y+2.5, h.Z), stone)
     end
+    for _, side in ipairs({-1, 1}) do
+        local north = part(room, "InvisibleBoundary", Vector3.new(h.Width+4, 64, 2),
+            CFrame.new(h.X, h.Y+30, h.Z+side*(h.Depth/2+1)), stone)
+        local east = part(room, "InvisibleBoundary", Vector3.new(2, 64, h.Depth+4),
+            CFrame.new(h.X+side*(h.Width/2+1), h.Y+30, h.Z), stone)
+        for _, wall in ipairs({north,east}) do
+            wall.Transparency = 1
+            wall.CanCollide = true
+            wall.CanQuery = false
+            wall.CastShadow = false
+        end
+    end
     local banner = part(room, "BattleTitle", Vector3.new(1, 1, 1), CFrame.new(h.X, h.Y+22, h.Z), stone)
     banner.Transparency = 1
     banner.CanCollide = false
@@ -217,28 +223,36 @@ function World:holding(onSelect, onExit)
     self.HoldingSpawn = CFrame.new(h.X, h.Y+5, h.Z+8)
     for i, def in ipairs(Config.Characters) do
         local position = Layout.portal(Config, i)
-        local cf = CFrame.lookAt(Vector3.new(position.X, position.Y, position.Z), Vector3.new(h.X, h.Y, h.Z))
+        local cf = CFrame.new(position.X, position.Y, position.Z) * CFrame.Angles(0, i <= 4 and math.pi or 0, 0)
         local color = Color3.fromHex(def.Color)
         local model = Instance.new("Model")
         model.Name = def.Id .. "SelectionPortal"
         model.Parent = room
         local pad = part(model, "SelectionPad", Vector3.new(24, 0.5, 20), cf*CFrame.new(0, 0.25, 0), color, Enum.Material.Neon)
         for _, side in ipairs({-1, 1}) do
-            part(model, "PortalPillar", Vector3.new(2, 14, 2), cf*CFrame.new(side*11, 7, 0), color, Enum.Material.Neon)
+            part(model, "PortalPillar", Vector3.new(2.5, 14, 4), cf*CFrame.new(side*11, 7, 0), stone, Enum.Material.Slate)
         end
-        part(model, "PortalArch", Vector3.new(24, 2, 2), cf*CFrame.new(0, 15, 0), color, Enum.Material.Neon)
-        sculpture(model, def.Name, cf*CFrame.new(0, 0.6, 3), 1.5)
-        local anchor = part(model, "SignAnchor", Vector3.one, cf*CFrame.new(0, 16, 0), color)
+        part(model, "PortalLintel", Vector3.new(24.5, 2, 4), cf*CFrame.new(0, 15, 0), stone, Enum.Material.Slate)
+        for _, side in ipairs({-1,1}) do
+            part(model, "PortalLightStrip", Vector3.new(0.3, 12, 0.25), cf*CFrame.new(side*9.6, 7, -2.1), color, Enum.Material.Neon)
+            part(model, "PortalFoot", Vector3.new(4, 1, 6), cf*CFrame.new(side*11, 0.5, 0), stone)
+        end
+        part(model, "PortalLightHeader", Vector3.new(19.5, 0.3, 0.25), cf*CFrame.new(0, 14.1, -2.1), color, Enum.Material.Neon)
+        part(model, "DisplayPlinth", Vector3.new(11, 0.6, 11), cf*CFrame.new(0, 0.8, 3), stone)
+
+        sculpture(model, def.Name, cf*CFrame.new(0, 1.1, 3), 1.8)
+        local anchor = part(model, "SignAnchor", Vector3.one, cf*CFrame.new(0, 18, 0), color)
         anchor.Transparency = 1
         anchor.CanCollide = false
         anchor.CanQuery = false
-        local status = label(anchor, def.Name .. "\nJOIN TEAM • 0 / 4", color, 230, 92, 240)
+        local status = label(anchor, def.Name .. "\nJOIN TEAM • 0 / 4", color, 21, 3.5, 120, true)
         local prompt
         if onSelect then
             prompt = Instance.new("ProximityPrompt")
             prompt.ActionText = "Join team"
-            prompt.ObjectText = def.Name
-            prompt.MaxActivationDistance = 16
+            prompt.ObjectText = "" -- The compact sign already names the character.
+            prompt.MaxActivationDistance = 10
+            prompt.Exclusivity = Enum.ProximityPromptExclusivity.OnePerButton
             prompt.HoldDuration = 0.2
             prompt.RequiresLineOfSight = false
             prompt.Parent = pad
@@ -276,7 +290,7 @@ function World:setObjective(index, team, hp)
     base.Hitbox.CanQuery = team ~= nil and hp > 0
     base.Hitbox:SetAttribute("TeamBase", team)
     for _, p in ipairs(base.Statue:GetChildren()) do
-        p.Transparency = (team and hp > 0) and 0 or 0.78
+        p.Transparency = (not team or hp > 0) and 0 or 0.78
     end
     local def = Config.Characters[index]
     base.Label.Text = def.Name .. "\n" .. (not team and "UNOCCUPIED" or (hp > 0 and (hp .. " / 50 TEAM HP") or "DESTROYED • NO RESPAWNS"))

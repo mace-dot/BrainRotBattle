@@ -5,7 +5,9 @@ function Layout.spawnOffset(slot)
 end
 function Layout.base(config, index)
     local angle = -math.pi / 2 + (index - 1) * math.pi * 2 / #config.Characters
-    return { X = math.cos(angle) * config.BaseRadius, Z = math.sin(angle) * config.BaseRadius, Angle = angle }
+    -- Cardinal foundations allow exact rectangular excavation for the basements.
+    local yaw = math.floor(( -angle - math.pi/2) / (math.pi/2) + 0.5) * math.pi/2
+    return { X = math.cos(angle) * config.BaseRadius, Z = math.sin(angle) * config.BaseRadius, Angle = angle, Yaw = yaw + math.pi }
 end
 function Layout.portal(config, index)
     local h = config.Holding

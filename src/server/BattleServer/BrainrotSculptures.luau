@@ -244,6 +244,148 @@ local BUILDERS = {
 	["Brr Brr Patapim"] = patapim,
 }
 
+-- Extra silhouette and surface detail, shared by selection displays and objectives.
+-- All geometry is generated locally; no downloaded meshes or texture dependencies.
+local function detail(list, scale, name)
+    local function add(id,sx,sy,sz,color,x,y,z,shape,material,rotation,upright)
+        emit(list,scale,id,sx,sy,sz,color,x,y,z,shape,material,rotation,upright)
+    end
+    if name == "Tung Tung Tung Sahur" then
+        for n=1,9 do
+            local a=n*math.pi*2/9
+            add("BarkGrain"..n,0.045,2.1+(n%3)*0.4,0.045,WOOD_DARK,math.cos(a)*0.57,2.55,math.sin(a)*0.57,nil,MAT_WOOD)
+        end
+        for _,side in ipairs({-1,1}) do
+            add("Brow"..side,0.55,0.12,0.16,WOOD_DARK,side*0.29,3.78,-0.69,nil,MAT_WOOD,{Z=side*12})
+            add("Hand"..side,0.42,0.5,0.4,WOOD,side*1.55,side==1 and 1.85 or 1.95,-0.12,BALL,MAT_WOOD)
+            for n=1,3 do
+                add("Finger"..side..n,0.09,0.3,0.13,WOOD_DARK,side*1.55+(n-2)*0.11,1.72,-0.32,BALL,MAT_WOOD)
+            end
+        end
+        add("Nose",0.22,0.4,0.27,WOOD,0,3.02,-0.76,BALL,MAT_WOOD)
+        add("LowerLip",0.4,0.07,0.13,WOOD,0,2.76,-0.66)
+        add("BatKnob",0.13,0.32,0.32,WOOD,1.08,1.07,-0.35,CYL,MAT_WOOD,{Z=-62})
+    elseif name == "Tralalero Tralala" then
+        for _,spec in ipairs(list) do
+            if spec.Name=="Body" or spec.Name=="Snout" then spec.Shape=BALL end
+        end
+        for _,side in ipairs({-1,1}) do
+            add("PectoralFin"..side,0.85,0.13,1.05,SHARK,side*0.72,1.6,0.2,nil,nil,{Z=side*22,Y=side*25})
+            add("MouthLine"..side,0.035,0.14,0.8,BLACK,side*0.26,1.55,-1.92)
+            for n=1,4 do
+                add("Tooth"..side..n,0.07,0.12,0.08,WHITE,side*0.28,1.57,-1.6-n*0.16)
+                add("GillSlit"..side..n,0.04,0.32,0.045,Color3.fromRGB(34,91,120),side*0.52,1.87,-0.25-n*0.14)
+            end
+        end
+        for _,shoe in ipairs({{"L",-0.62,-0.45},{"M",0,0.35},{"R",0.62,-0.1}}) do
+            for n=1,3 do
+                add("Lace"..shoe[1]..n,0.45,0.035,0.045,WHITE,shoe[2],1.095,shoe[3]-0.1-n*0.12)
+            end
+            add("ShoeHeel"..shoe[1],0.65,0.33,0.18,SHOE,shoe[2],1.06,shoe[3]+0.43)
+        end
+    elseif name == "Bombardiro Crocodilo" then
+        for _,side in ipairs({-1,1}) do
+            add("Engine"..side,0.48,0.48,1.3,HIDE,side*1.6,1.8,-0.12,BALL,MAT_METAL)
+            add("PropBlade"..side,0.12,1.2,0.1,BLACK,side*1.6,1.8,-0.82,nil,MAT_METAL)
+            add("TailPlane"..side,1.2,0.1,0.7,HIDE,side*0.7,1.95,2.6,nil,MAT_METAL)
+            add("Nostril"..side,0.1,0.06,0.16,BLACK,side*0.2,2.25,-3.05,BALL)
+            add("Pupil"..side,0.07,0.14,0.08,BLACK,side*0.3,2.17,-1.77,BALL)
+            for n=1,7 do
+                add("Fang"..side..n,0.07,0.17,0.08,WHITE,side*0.28,1.68,-1.7-n*0.18)
+                add("HullRivet"..side..n,0.06,0.06,0.06,METAL,side*0.43,2.08,-0.5+n*0.4,BALL,MAT_METAL)
+            end
+        end
+        for n=1,7 do
+            add("DorsalScute"..n,0.25,0.16,0.21,HIDE,0,2.33,-1.25+n*0.48)
+        end
+    elseif name == "Lirili Larila" then
+        for _,side in ipairs({-1,1}) do
+            add("CactusArm"..side,0.7,0.3,0.3,CACTUS,side*0.55,2.05,0,CYL)
+            add("CactusArmTip"..side,0.65,0.3,0.3,CACTUS,side*0.85,2.3,0,CYL,nil,nil,true)
+            add("EarFold"..side,0.13,0.7,0.46,EAR_PINK,side*0.82,3.35,-0.22,BALL)
+            add("EyeHighlight"..side,0.055,0.06,0.04,WHITE,side*0.26,3.64,-0.6,BALL)
+            for n=1,4 do
+                add("CactusSpine"..side..n,0.22,0.035,0.035,FOAM,side*0.37,1.3+n*0.3,-0.19,nil,nil,{Z=side*25})
+                add("TrunkCrease"..side..n,0.09,0.035,0.05,Color3.fromRGB(146,125,105),side*0.08,2.12+n*0.18,-0.82)
+            end
+        end
+        for n=-1,1 do
+            add("CactusRib"..n,0.035,1.2,0.035,Color3.fromRGB(109,175,83),n*0.17,1.95,-0.34)
+        end
+    elseif name == "Chimpanzini Bananini" then
+        for _,side in ipairs({-1,1}) do
+            add("Pupil"..side,0.08,0.1,0.07,BLACK,side*0.2,3.28,-0.61,BALL)
+            add("Brow"..side,0.25,0.09,0.12,FUR,side*0.2,3.45,-0.55,BALL)
+            add("Nostril"..side,0.065,0.05,0.05,BLACK,side*0.085,2.95,-0.76,BALL)
+            add("ChimpArm"..side,1.1,0.25,0.25,FUR,side*0.78,2.4,-0.15,CYL,nil,{Z=side*35})
+            add("ChimpHand"..side,0.35,0.4,0.3,FACE,side*1.15,2.1,-0.15,BALL)
+            add("CurledPeel"..side,0.22,0.75,0.7,BANANA,side*1.1,1.04,0.1,nil,nil,{Z=side*65})
+            add("PeelEdge"..side,0.08,1.45,0.72,BANANA,side*0.95,1.72,0.1,nil,nil,{Z=side*-28})
+        end
+        add("Smile",0.3,0.04,0.04,FUR,0,2.79,-0.77)
+        add("BananaTip",0.36,0.38,0.4,WOOD_DARK,0,0.94,0.05,BALL)
+        for n=1,5 do
+            add("HairTuft"..n,0.2,0.28,0.2,FUR,(n-3)*0.13,3.79+(n%2)*0.06,0,BALL)
+        end
+    elseif name == "Ballerina Cappuccina" then
+        -- Segmented circular handle and pleated skirt create a recognisable cup/dancer.
+        for n=1,12 do
+            local a=n*math.pi/6
+            add("CupRim"..n,0.25,0.08,0.12,CUP,math.cos(a)*0.56,3.9,math.sin(a)*0.56,nil,nil,{Y=-math.deg(a)})
+            add("TutuFold"..n,0.26,0.5,0.3,n%2==0 and SLIPPER or TUTU,math.cos(a)*0.8,1.98,math.sin(a)*0.8,nil,nil,{Y=-math.deg(a),Z=18})
+        end
+        for n=1,7 do
+            local a=-math.pi/2+n*math.pi/8
+            add("HandleCurve"..n,0.18,0.2,0.18,CUP,0.67+math.cos(a)*0.4,3.2+math.sin(a)*0.42,0,BALL)
+        end
+        for _,side in ipairs({-1,1}) do
+            add("Blush"..side,0.2,0.1,0.035,SLIPPER,side*0.38,3.01,-0.58,BALL)
+            add("Eyelash"..side,0.12,0.035,0.06,BLACK,side*0.29,3.3,-0.64,nil,nil,{Z=side*25})
+        end
+        add("Bodice",0.55,0.55,0.45,TUTU,0,2.53,0,BALL)
+        for n=1,4 do
+            add("LatteFoamPetal"..n,0.14,0.045,0.3,COFFEE,(n%2==0 and 1 or -1)*0.1,4.14,(n-2.5)*0.12,BALL)
+        end
+    elseif name == "Trippi Troppi" then
+        for _,spec in ipairs(list) do
+            if spec.Name=="Shell" or spec.Name=="Segment" then spec.Shape=BALL end
+        end
+        for n=1,6 do
+            add("ShellBand"..n,0.82-n*0.045,0.57-n*0.025,0.15,n%2==0 and SHRIMP or Color3.fromRGB(232,100,56),0,1.78-(n-1)*0.025,0.05+n*0.22,BALL)
+        end
+        for _,side in ipairs({-1,1}) do
+            add("CatPupil"..side,0.045,0.16,0.04,BLACK,side*0.2,2.2,-1.32,BALL)
+            add("Muzzle"..side,0.29,0.2,0.16,FOAM,side*0.12,1.94,-1.3,BALL)
+            for n=1,3 do
+                add("WhiskerFine"..side..n,0.65,0.025,0.025,WHITE,side*0.48,1.91+(n-2)*0.1,-1.35,nil,nil,{Z=side*(n-2)*12})
+            end
+            add("Antenna"..side,0.04,0.85,0.04,SHRIMP,side*0.28,2.94,-0.6,nil,nil,{Z=side*25})
+            add("TailPetal"..side,0.45,0.14,0.65,SHRIMP,side*0.3,1.6,2.06,nil,nil,{Y=side*30})
+        end
+    elseif name == "Brr Brr Patapim" then
+        -- Repair the long nose's axis (cylinders run along local X).
+        for _,spec in ipairs(list) do
+            if spec.Name=="Nose" then
+                spec.Size=Vector3.new(1.35,0.28,0.28)*scale
+                spec.Offset=CFrame.new(0,2.4*scale,-1.15*scale)*CFrame.Angles(0,math.pi/2,0)
+            end
+        end
+        for _,side in ipairs({-1,1}) do
+            add("BranchArm"..side,1.1,0.25,0.25,ROOT,side*0.9,2.0,0,CYL,MAT_WOOD,{Z=side*32})
+            add("Ear"..side,0.26,0.4,0.2,SKIN,side*0.52,2.5,-0.4,BALL)
+            for n=1,5 do
+                add("ToeDetail"..side..n,0.28,0.24,0.5,SKIN,side*0.85+(n-3)*0.29,0.28,-1.18,BALL)
+                add("RootBark"..side..n,0.045,0.8,0.045,WOOD_DARK,side*0.4+(n-3)*0.04,1.14,-0.12,nil,MAT_WOOD)
+            end
+        end
+        for n=1,10 do
+            local a=n*math.pi/5
+            add("LeafCrown"..n,0.6,0.45,0.65,n%2==0 and LEAF or Color3.fromRGB(57,151,60),math.cos(a)*0.65,2.85+(n%3)*0.15,0.1+math.sin(a)*0.6,BALL)
+        end
+        add("Mouth",0.28,0.06,0.08,WOOD_DARK,0,2.22,-0.71)
+    end
+end
+
 function Sculptures.names()
 	local list = {}
 	for name in pairs(BUILDERS) do
@@ -259,6 +401,7 @@ function Sculptures.specs(name, scale)
 	scale = scale or 1
 	local list = {}
 	local caption = build(list, scale)
+	detail(list, scale, name)
 	return list, caption
 end
 

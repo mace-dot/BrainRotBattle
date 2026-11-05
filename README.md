@@ -76,7 +76,7 @@ With Rojo synced and Studio stopped, open the **Command Bar** and run:
 require(game.ServerScriptService.BattleServer.StudioPreview).build()
 ```
 
-Select `Workspace.BrainRotBattle_EditorPreview` in Explorer and press **F** to frame the full map. This uses the live geometry builder, original sculptures and portal labels, with no player sessions or interactive event connections. Rebuilding replaces only its marked generated container; unrelated objects and editor lighting are preserved.
+Select `Workspace.BrainRotBattle_EditorPreview` in Explorer and press **F** to frame the full map. This uses the live geometry builder, detailed sculptures and portal labels, with no player sessions or interactive event connections. Rebuilding replaces only its marked generated container; unrelated objects and editor lighting are preserved.
 
 Remove the preview with:
 
@@ -88,9 +88,11 @@ The runtime removes an owned edit preview before building the actual world. The 
 
 ## Arena
 
-The 900×900 arena has eight bases on a 330-stud radius, approximately 253 studs between adjacent bases. Each base has sheltered objective placement, a front spawn screen, and two flanking entrances. Eight equal trail/cover sectors connect to a central cornucopia-style clearing. The middle contains 96 trees, boulders, logs, stumps, bushes, ruined walls, and small stepped ridges. The repeated sectors keep routes and cover broadly balanced. Final sightlines, travel times, and mobile frame rate require Studio playtesting.
+The 900×900 arena has eight bases on a 330-stud radius, approximately 253 studs between adjacent bases. Every fort has a basement at Y=-12, a ground floor at Y=0, and a second floor at Y=16. Separate stairs connect the floors. The matching Brainrot and its objective hitbox sit on a pedestal upstairs; players spawn on the ground floor. Cardinal foundations fit exact openings in the arena ground so the basements are genuinely accessible. Front and side doors provide multiple approaches.
 
-The holding room is physically isolated north of the arena. Always-on-top portal labels have dark backings, bright character colors, and visible reservation status. The central **BRAIN ROT BATTLES** sign is large and readable from the holding spawn. There is no active single-player portal unless an optional external destination is configured.
+Eight trail/cover sectors lead to a central metal supply shelter and a ring of tribute platforms. The forest contains 96 branching trees with layered crowns, ferns, mushrooms, boulders, logs, ruined arches, abandoned camps, crates, marsh stepping stones, cliffs and mossy ridges. Camps and crates are scenery/cover, not loot systems. Repeated sectors keep cover broadly balanced. Final sightlines, stair traversal, travel times, and mobile frame rate require Studio playtesting.
+
+The holding platform is physically isolated north of the arena and enclosed by invisible collision walls. Square portals face straight inward in two rows. Character/reservation signs use world-space dimensions with a 22-pixel text ceiling, shrinking with distance instead of dominating the screen when zoomed out. A short-range native join prompt avoids duplicating the character title. The central **BRAIN ROT BATTLES** sign and on-screen team HUD retain their existing sizing. There is no active single-player portal unless an optional external destination is configured.
 
 ## Architecture
 
@@ -101,14 +103,16 @@ The holding room is physically isolated north of the arena. Always-on-top portal
 | `src/server/BattleServer/Combat.luau` | Tool grants, server raycasts, damage validation, request limiting |
 | `src/server/BattleServer/WeaponState.luau` | Server-owned ammo, attack/reload timers |
 | `src/server/BattleServer/World.luau` | Holding space, eight selection portals, forest, bases and objective hitboxes |
-| `src/server/BattleServer/BrainrotSculptures.luau` | Extracted original procedural character visuals |
+| `src/server/BattleServer/ArenaArchitecture.luau` | Excavated ground, three-floor forts, stairs, upstairs objectives |
+| `src/server/BattleServer/ArenaDetails.luau` | Central supply shelter and repeated forest/camp dressing |
+| `src/server/BattleServer/BrainrotSculptures.luau` | Detailed procedural character visuals shared by portals and bases |
 | `src/shared/Config.luau` | PvP balance and destination configuration |
 | `src/shared/Layout.luau` | Scalar map geometry and bounds |
 | `src/client/Battle.client.luau` | HUD, touch/controller controls, aim/scope, visual feedback |
 
 Clients request an attack direction/aim point, never accepted damage or a victim. The server derives ray origin and range, verifies equipped tools and round identity, validates combat membership/bounds, and enforces line of sight, ammo, cooldowns, ownership, and protection. Server-created objective hitboxes are queryable only while occupied and alive. Real Roblox Teams group teammates in the player list. Friendly-fire checks and shared objective health are enforced on the server. Decorative sculptures cannot intercept hits. Delayed respawns are guarded by round IDs, spawn tokens, and character generations.
 
-The original `BrainrotSculptures.luau` is preserved byte-for-byte (Git blob `8e78c1f3377d3f869e617d1b0cd84e16ba6956d7`): the same eight names, procedural shapes, colors, and features are used for portal previews and objectives.
+The sculptures derive from the original `BrainrotSculptures.luau` (Git blob `8e78c1f3377d3f869e617d1b0cd84e16ba6956d7`) with additional bark, facial features, shark gills/sneaker laces, aircraft engines/teeth, cactus spines, banana peel, cup/tutu detail, shrimp shell bands, and leafy roots/toes. Both portals and objectives use the same builders. All assets remain procedural; no external meshes or textures are required.
 
 There is no persistence in this initial version. `DataStoreName` reserves a separate PvP namespace for future work; original progression keys are never read or written.
 

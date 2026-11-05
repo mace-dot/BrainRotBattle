@@ -1,7 +1,7 @@
 -- PvP configuration only. No single-player progression or DataStore dependencies.
 return {
     Title = "BRAIN ROT BATTLES",
-    BuildId = "forest-team-battles-20261105b",
+    BuildId = "forest-three-floor-bases-20261105c",
     -- One switch for all solo practice tools. The server ALSO requires IsStudio().
     StudioPracticeEnabled = true,
     PlayerHealth = 200,
