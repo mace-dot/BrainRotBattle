@@ -1,7 +1,8 @@
 -- PvP configuration only. No single-player progression or DataStore dependencies.
+local arenaSize, baseHalf, wallThickness, rearClearance = 1300, 32, 10, 40
 return {
     Title = "BRAIN ROT BATTLES",
-    BuildId = "vine-forest-bunkers-healthbars-20261105e",
+    BuildId = "fortress-loadout-movement-20261105f",
     -- One switch for all solo practice tools. The server ALSO requires IsStudio().
     StudioPracticeEnabled = true,
     PlayerHealth = 200,
@@ -17,8 +18,17 @@ return {
     RespawnDelay = 3,
     SpawnProtection = 3,
     WalkSpeed = 20,
-    ArenaSize = 1300,
-    BaseRadius = 500,
+    ArenaSize = arenaSize,
+    BaseRadius = arenaSize/2-baseHalf-wallThickness-rearClearance,
+    PerimeterHeight = 82,
+    WallThickness = wallThickness,
+    ClimbableTreeEvery = 5,
+    CreatorUserId = 133655557,
+    CreatorUsername = "CoolAwesomeness07",
+    CreatorStatueHeight = 64,
+    Loadout = {"Bat", "Sniper", "Handgun", "Crossbow", "Sword"},
+    Movement = { SprintMultiplier=1.5, CrouchMultiplier=0.6, ProneMultiplier=0.3,
+        Drain=0.2, Recharge=0.05, RestartThreshold=0.2 },
     Holding = { X = 0, Y = 70, Z = -850, Width = 220, Depth = 150 },
     -- Set actual published destination IDs to enable optional cross-game travel.
     SinglePlayerPlaceId = 0,
@@ -26,8 +36,11 @@ return {
     -- Reserved for future PvP persistence; this release never accesses old saves.
     DataStoreName = "BrainRotBattle_Progress_v1",
     Weapons = {
-        Bat = { PlayerDamage = 25, ObjectiveDamage = 10, Cooldown = 0.65, Range = 10, Knockback = 22 },
-        Sniper = { PlayerDamage = 70, ObjectiveDamage = 10, Cooldown = 1.2, Range = 650, Magazine = 5, Reload = 2.8 },
+        Bat = { Kind="Melee", PlayerDamage=25, ObjectiveDamage=10, Cooldown=0.65, Range=8, Knockback=22, Window=0.16 },
+        Sniper = { Kind="Hitscan", PlayerDamage=50, ObjectiveDamage=10, Cooldown=1.2, Range=650, Magazine=6, Reserve=12, Reload=2.5 },
+        Handgun = { Kind="Hitscan", PlayerDamage=20, ObjectiveDamage=10, Cooldown=0.25, Range=240, Magazine=16, Reserve=32, Reload=1.5 },
+        Crossbow = { Kind="Projectile", PlayerDamage=65, ObjectiveDamage=10, Cooldown=1, Range=420, Magazine=1, Reserve=8, Reload=1.8, Speed=180, Gravity=28, Lifetime=4 },
+        Sword = { Kind="Melee", PlayerDamage=35, ObjectiveDamage=10, Cooldown=0.7, Range=7, Window=0.18 },
     },
     Characters = {
         { Id = "Tung", Name = "Tung Tung Tung Sahur", Color = "F5A34B" },
