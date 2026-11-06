@@ -150,27 +150,9 @@ test("four spawn slots do not overlap",function()
         assert(math.sqrt((p.X-q.X)^2+(p.Z-q.Z)^2)>=10)
     end end
 end)
-test("weapons reset to full magazine", function()
-    local w=WeaponState.new(Config); w:reset(1); eq(w:get(1,0).Ammo,5); w:attack(1,"Sniper",0); w:reset(1); eq(w:get(1,1).Ammo,5)
-end)
-test("sniper cooldown and cross-weapon swap protection", function()
-    local w=WeaponState.new(Config); w:reset(1); assert(w:attack(1,"Sniper",0)); eq(w:attack(1,"Bat",0.1),false)
-    eq(w:get(1,0.1).Ammo,4); assert(w:attack(1,"Bat",1.2))
-end)
-test("reload holds empty magazine until timer completes", function()
-    local w=WeaponState.new(Config); w:reset(1)
-    for i=0,4 do assert(w:attack(1,"Sniper",i*2)) end
-    eq(w:attack(1,"Sniper",10),false); eq(w:get(1,11).Ammo,0)
-    eq(w:attack(1,"Bat",11),false); eq(w:get(1,13).Ammo,5)
-end)
-test("manual reload cannot be spammed or shorten timer", function()
-    local w=WeaponState.new(Config); w:reset(1); eq(w:reload(1,0),false); w:attack(1,"Sniper",0)
-    assert(w:reload(1,1)); eq(w:reload(1,2),false); eq(w:get(1,2).ReloadUntil,3.8)
-end)
-test("uninitialized weapons cannot fire",function() eq(WeaponState.new(Config):attack(1,"Sniper",0),false) end)
-test("both weapons have separate objective damage", function()
-    for _,id in ipairs({"Bat","Sniper"}) do assert(Config.Weapons[id].ObjectiveDamage < 50); assert(Config.Weapons[id].PlayerDamage > 0) end
-end)
+dofile("tests/weapons.lua")(test,eq,Config,WeaponState)
+dofile("tests/movement.lua")(test,eq,Config)
+
 test("all bases fit arena with clearance", function()
     for i=1,8 do local p=Layout.base(Config,i); assert(math.abs(p.X)+45 < Config.ArenaSize/2); assert(math.abs(p.Z)+45 < Config.ArenaSize/2) end
 end)
@@ -206,15 +188,15 @@ local function combatTests()
         local players={}
         local lookup={}
         function players:GetPlayerFromCharacter(c) return lookup[c] end
-        local modules={Config={},Layout={},WeaponState={}}
+        local modules={Config={},Layout={},WeaponState={},WeaponModels={},ProjectileState={}}
         local rayResult, rayOrigin, rayDirection
-        local env=setmetatable({script={Parent={WeaponState=modules.WeaponState}}, Vector3={new=vec},
+        local env=setmetatable({script={Parent=modules}, Vector3={new=vec},
             game={GetService=function(_,service)
                 if service=="Players" then return players end
                 return {Shared={Config=modules.Config,Layout=modules.Layout}}
             end},
             require=function(key)
-                if key==modules.Config then return Config elseif key==modules.Layout then return Layout else return WeaponState end
+                if key==modules.Config then return Config elseif key==modules.Layout then return Layout elseif key==modules.WeaponState then return WeaponState else return {} end
             end,
             typeof=function(v) return getmetatable(v)==vector and "Vector3" or type(v) end,
             workspace={Raycast=function(_,origin,direction) rayOrigin=origin; rayDirection=direction; return rayResult end},
@@ -224,7 +206,7 @@ local function combatTests()
         local service=Combat.new(match,world,feedback,function() end)
         local function player(id)
             local attributes={ProtectedUntil=0}
-            local tool={GetAttribute=function(_,key) return key=="BattleRound" and match.Round or "Sniper" end}
+            local tool={GetAttribute=function(_,key) return key=="BattleOwner" and id or key=="BattleRound" and match.Round or "Sniper" end}
             local hum={Health=200,TakeDamage=function(self,n) self.Health=self.Health-n end}
             local root={Position=vec(0,5,0),CFrame={LookVector=vec(0,0,-1),RightVector=vec(1,0,0)},AssemblyMass=1,ApplyImpulse=function() end}
             local head={Position=vec(0,6,0)}
@@ -232,6 +214,8 @@ local function combatTests()
                 FindFirstChild=function(_,name) return name=="Head" and head or root end,
                 FindFirstChildOfClass=function(_,class) return class=="Humanoid" and hum or tool end}
             local p={UserId=id,DisplayName=tostring(id),Character=char,GetAttribute=function(_,key) return attributes[key] end}
+            tool.FindFirstChild=function() return {FindFirstChild=function() return {WorldPosition=head.Position} end} end
+            service.Registered[tool]=id
             lookup[char]=p
             service.Weapons:reset(id)
             return p,hum,attributes,root,head,tool
@@ -243,9 +227,11 @@ local function combatTests()
         return {Service=service,Match=match,World=world,Attacker=attacker,Victim=victim,Hum=hum,Attrs=attrs,VAttrs=vattrs,Root=root,Head=head,Tool=tool,
             Shoot=function(t,aim) service:handle(attacker,"Attack",aim or vec(0,6,-30),t or 0) end,
             Ray=function() return rayOrigin,rayDirection end,
-            SetHit=function(part) rayResult={Instance=part,Position=vec(0,6,-20)} end}
+            SetHit=function(part) rayResult={Instance=part,Position=vec(0,6,-20)} end,
+            Distance=function(distance) rayResult.Position=vec(0,6,-distance) end,
+            Muzzle=function(position) tool.FindFirstChild=function() return {FindFirstChild=function() return {WorldPosition=position} end} end end}
     end
-    test("production sniper applies configured player damage",function() local f=fixture(); f.Shoot(); eq(f.Hum.Health,130) end)
+    test("production sniper applies configured player damage",function() local f=fixture(); f.Shoot(); eq(f.Hum.Health,150) end)
     test("production sniper derives origin/range on server",function()
         local f=fixture(); f.Shoot(); local origin,direction=f.Ray(); eq(origin,f.Head.Position); eq(direction.Magnitude,650)
     end)
@@ -261,11 +247,11 @@ local function combatTests()
     end)
     test("production bat cannot hurt a teammate",function()
         local f=fixture(); f.Match.Members[202].Base=1
-        f.Tool.GetAttribute=function(_,key) return key=="BattleRound" and 1 or "Bat" end
+        f.Tool.GetAttribute=function(_,key) return key=="BattleOwner" and 101 or key=="BattleRound" and 1 or "Bat" end
         f.Shoot(); eq(f.Hum.Health,200)
     end)
     test("production handler rejects NaN and fake aim values",function()
-        local f=fixture(); f.Shoot(0,vec(0/0,0,0)); f.Shoot(0,"fake"); eq(f.Hum.Health,200); eq(f.Service.Weapons:get(101,0).Ammo,5)
+        local f=fixture(); f.Shoot(0,vec(0/0,0,0)); f.Shoot(0,"fake"); eq(f.Hum.Health,200); eq(f.Service.Weapons:get(101,0).Ammo,6)
     end)
     test("production handler rejects outside-arena attackers",function()
         local f=fixture(); f.Root.Position=vec(Config.Holding.X,Config.Holding.Y+5,Config.Holding.Z)
@@ -275,7 +261,7 @@ local function combatTests()
         local f=fixture(); f.Head.Position=vec(0,6,-200); f.Shoot(); eq(f.Hum.Health,200)
     end)
     test("production handler rejects wrong-round tools",function()
-        local f=fixture(); f.Tool.GetAttribute=function(_,key) return key=="BattleRound" and 999 or "Sniper" end; f.Shoot(); eq(f.Hum.Health,200)
+        local f=fixture(); f.Tool.GetAttribute=function(_,key) return key=="BattleOwner" and 101 or key=="BattleRound" and 999 or "Sniper" end; f.Shoot(); eq(f.Hum.Health,200)
     end)
     test("production handler rejects waiting and eliminated attackers",function()
         local f=fixture(); f.Match:leave(101); f.Shoot(); eq(f.Hum.Health,200)
@@ -294,8 +280,43 @@ local function combatTests()
         eq(s.Teams[2].HP,40); eq(s.Teams[1].HP,50)
     end)
     test("bat fan damages at most one player per swing",function()
-        local f=fixture(); f.Tool.GetAttribute=function(_,key) return key=="BattleRound" and 1 or "Bat" end
-        f.Shoot(); eq(f.Hum.Health,175); f.Shoot(0.1); eq(f.Hum.Health,175)
+        local f=fixture(); f.Tool.GetAttribute=function(_,key) return key=="BattleOwner" and 101 or key=="BattleRound" and 1 or "Bat" end
+        f.Distance(5); f.Shoot(); eq(f.Hum.Health,175); f.Shoot(0.1); eq(f.Hum.Health,175)
+    end)
+    test("unregistered or foreign tools cannot attack",function()
+        local f=fixture(); f.Service.Registered[f.Tool]=nil; f.Shoot(); eq(f.Hum.Health,200)
+    end)
+    test("sword requires bounded contact and only hits once",function()
+        local f=fixture(); f.Tool.GetAttribute=function(_,key) return key=="BattleOwner" and 101 or key=="BattleRound" and 1 or "Sword" end
+        f.Shoot(); eq(f.Hum.Health,200)
+        f.Distance(6); f.Shoot(1); eq(f.Hum.Health,165); f.Shoot(1.1); eq(f.Hum.Health,165)
+    end)
+    test("sword cannot damage through protective glass",function()
+        local f=fixture(); f.Tool.GetAttribute=function(_,key) return key=="BattleOwner" and 101 or key=="BattleRound" and 1 or "Sword" end
+        f.SetHit({GetAttribute=function() end,IsA=function() return false end}); f.Distance(3)
+        f.Shoot(); eq(f.Hum.Health,200)
+    end)
+    test("head to muzzle obstruction stops camera-around-corner shots",function()
+        local f=fixture(); f.Muzzle(vec(0,6,-4))
+        f.SetHit({GetAttribute=function() end,IsA=function() return false end}); f.Distance(2)
+        f.Shoot(); eq(f.Hum.Health,200)
+        local origin,direction=f.Ray(); eq(origin,f.Head.Position); eq(direction.Magnitude,4)
+    end)
+    test("four sniper body hits eliminate 200 HP",function()
+        local f=fixture(); for i=0,3 do f.Shoot(i*2) end; eq(f.Hum.Health,0)
+    end)
+    test("handgun applies twenty damage and consumes one bullet",function()
+        local f=fixture(); f.Tool.GetAttribute=function(_,key) return key=="BattleOwner" and 101 or key=="BattleRound" and 1 or "Handgun" end
+        f.Shoot(); eq(f.Hum.Health,180); eq(f.Service.Weapons:get(101,0,"Handgun").Ammo,15)
+    end)
+    test("all weapon damage shares friendly-fire and shield protection",function()
+        for _,name in ipairs(Config.Loadout) do
+            local f=fixture(); local hit={GetAttribute=function() end,IsA=function() return false end,Parent=f.Victim.Character}
+            f.Match.Members[202].Base=1
+            eq(f.Service:damage(f.Attacker,{Instance=hit},name,0,vec(0,0,-1)),false)
+            f.Match.Members[202].Base=2; f.VAttrs.ProtectedUntil=10
+            eq(f.Service:damage(f.Attacker,{Instance=hit},name,0,vec(0,0,-1)),false); eq(f.Hum.Health,200)
+        end
     end)
     test("server limits abusive request bursts",function()
         local f=fixture(); for _=1,12 do assert(f.Service:allowRequest(55,0)) end; eq(f.Service:allowRequest(55,0),false); assert(f.Service:allowRequest(55,1))
@@ -304,9 +325,15 @@ end
 combatTests()
 dofile("tests/practice.lua")(test, eq, Config, Match)
 dofile("tests/architecture.lua")(test, eq, Config, Layout)
+dofile("tests/projectiles.lua")(test,eq,Config)
 
 -- Compilation catches accidental syntax errors even in engine-dependent scripts.
 for _, path in ipairs({
+    "src/server/BattleServer/MovementState.luau", "src/server/BattleServer/MovementRig.luau",
+    "src/server/BattleServer/MovementService.luau", "src/server/BattleServer/ProjectileState.luau",
+    "src/server/BattleServer/WeaponModels.luau", "src/server/BattleServer/SpawnPlacement.luau",
+    "src/server/BattleServer/CreatorStatue.luau", "src/server/BattleServer/ArenaLandscape.luau",
+    "src/shared/CoverLayout.luau", "src/shared/Posture.luau", "src/client/Posture.client.luau",
     "src/shared/Config.luau", "src/shared/Layout.luau", "src/server/Main.server.luau",
     "src/server/BattleServer/PracticeState.luau", "src/server/BattleServer/StudioPractice.luau",
     "src/server/BattleServer/StudioPreview.luau", "src/client/StudioPractice.client.luau",

@@ -7,6 +7,9 @@ local Details = require(script.Parent.ArenaDetails)
 local HighGround = require(script.Parent.HighGround)
 local ForestLayout = require(Shared.ForestLayout)
 local ForestTrees = require(script.Parent.ForestTrees)
+local Landscape=require(script.Parent.ArenaLandscape)
+local CreatorStatue=require(script.Parent.CreatorStatue)
+local CoverLayout=require(Shared.CoverLayout)
 local World = {}
 World.__index = World
 
@@ -146,48 +149,27 @@ function World:arena()
     Architecture.ground(m, Config, Layout, part)
     Details.center(m, part)
     HighGround.build(m, Config, part)
-    local trees = ForestLayout.plan(Config, HighGround.locations(Config))
-    local climbCount = 0
-    for _, site in ipairs(trees) do
-        ForestTrees.build(m, site, part)
-        if site.Climbable then climbCount = climbCount+1 end
+    local landmarks=HighGround.locations(Config)
+    for i=1,#Config.Characters do
+        local a=Layout.base(Config,i).Angle+math.pi/8
+        table.insert(landmarks,{X=math.cos(a)*Config.BaseRadius*0.64,Z=math.sin(a)*Config.BaseRadius*0.64,Clearance=58})
     end
-    m:SetAttribute("TreeCount", #trees)
-    m:SetAttribute("VineTreeCount", climbCount)
-    -- Low outer ridges keep the arena legible without invisible movement barriers.
-    for _, sign in ipairs({-1, 1}) do
-        local edge = Config.ArenaSize/2-4
-        part(m, "BoundaryRidge", Vector3.new(Config.ArenaSize, 20, 8), CFrame.new(0, 8, sign*edge), stone, Enum.Material.Slate)
-        part(m, "BoundaryRidge", Vector3.new(8, 20, Config.ArenaSize), CFrame.new(sign*edge, 8, 0), stone, Enum.Material.Slate)
+    local trees=ForestLayout.plan(Config,landmarks)
+    local climbCount=0
+    for _,site in ipairs(trees) do
+        ForestTrees.build(m,site,part)
+        if site.Climbable then climbCount=climbCount+1 end
     end
-    for i, def in ipairs(Config.Characters) do
-        local layout = Layout.base(Config, i)
-        local color = Color3.fromHex(def.Color)
-        local cf = CFrame.new(layout.X, 0, layout.Z) * CFrame.Angles(0, layout.Yaw, 0)
-        self.Bases[i] = Architecture.base(m, def, i, cf, color, part, sculpture, healthBar)
-        Details.sector(m, layout.Angle, part, Config)
-        -- Eight equal paths and eight repeated cover sectors provide balanced travel.
-        local trailCount = math.ceil((Config.BaseRadius-95)/37)
-        for n = 1, trailCount do
-            local distance = 57 + (n-0.5)*(Config.BaseRadius-102)/trailCount
-            local pathCF = CFrame.lookAt(Vector3.new(math.cos(layout.Angle)*distance, 0, math.sin(layout.Angle)*distance), Vector3.new(0, 0, 0))
-            part(m, "Trail", Vector3.new(14, 0.12, (Config.BaseRadius-102)/trailCount+1), pathCF, Color3.fromRGB(128, 117, 83), Enum.Material.Ground)
-            local offset = n % 2 == 0 and 1 or -1
-            local boulder = part(m, "BoulderCover", Vector3.new(13, 9, 11), pathCF*CFrame.new(offset*24, 3.5, 0), stone, Enum.Material.Rock)
-            boulder.Shape = Enum.PartType.Ball
-            if n % 3 == 2 then
-                part(m, "FallenLog", Vector3.new(20, 4, 5), pathCF*CFrame.new(-offset*27, 2, 8)*CFrame.Angles(0, 0.3, 0), wood, Enum.Material.Wood)
-                part(m, "Stump", Vector3.new(5, 4, 5), pathCF*CFrame.new(-offset*39, 2, -7), wood, Enum.Material.Wood)
-            end
-        end
-        -- Shallow terraced ridges with walkable 1-stud steps; floor between them is a depression.
-        local angle = layout.Angle + math.pi/8
-        local ridge = CFrame.lookAt(Vector3.new(math.cos(angle)*Config.BaseRadius*0.4, 0, math.sin(angle)*Config.BaseRadius*0.4), Vector3.new(0, 0, 0))
-        for step = 1, 3 do
-            part(m, "MossyRidge", Vector3.new(32-step*6, step, 32-step*6), ridge*CFrame.new(-23, step/2, 21), grass, Enum.Material.Grass)
-        end
-        part(m, "RuinedWall", Vector3.new(22, 8, 3), ridge*CFrame.new(31, 4, 17), stone, Enum.Material.Slate)
-        part(m, "BrokenPillar", Vector3.new(5, 10, 5), ridge*CFrame.new(42, 5, 8), stone, Enum.Material.Slate)
+    m:SetAttribute("TreeCount",#trees); m:SetAttribute("VineTreeCount",climbCount)
+    Landscape.walls(m,Config,part)
+    Landscape.paths(m,Config,Layout,part)
+    Landscape.cover(m,CoverLayout.plan(Config,trees,landmarks),part)
+    CreatorStatue.build(m,Config,part)
+    for i,def in ipairs(Config.Characters) do
+        local layout=Layout.base(Config,i)
+        local cf=CFrame.new(layout.X,0,layout.Z)*CFrame.Angles(0,layout.Yaw,0)
+        self.Bases[i]=Architecture.base(m,def,i,cf,Color3.fromHex(def.Color),part,sculpture,healthBar)
+        Details.sector(m,layout.Angle,part,Config)
     end
 end
 

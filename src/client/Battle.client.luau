@@ -8,6 +8,7 @@ local player = Players.LocalPlayer
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local remotes = ReplicatedStorage:WaitForChild("BattleRemotes")
 local action = remotes:WaitForChild("Action")
+local moveAction=remotes:WaitForChild("Movement")
 local snapshot = remotes:WaitForChild("Snapshot")
 local feedback = remotes:WaitForChild("Feedback")
 local latest = { Active = false, Alive = false, Weapon = "" }
@@ -64,10 +65,10 @@ local teamRoster = text(gui, UDim2.new(0.025, 0, 0, 115), UDim2.new(0.4, 0, 0, 1
 teamRoster.TextXAlignment = Enum.TextXAlignment.Left
 teamRoster.TextYAlignment = Enum.TextYAlignment.Top
 
-local stats = frame(gui, UDim2.new(0.025, 0, 1, -20), UDim2.new(0.43, 0, 0, 139))
+local stats = frame(gui, UDim2.new(0.025, 0, 1, -20), UDim2.new(0.43, 0, 0, 205))
 stats.AnchorPoint = Vector2.new(0, 1)
 local statsLimit = Instance.new("UISizeConstraint")
-statsLimit.MaxSize = Vector2.new(320, 139)
+statsLimit.MaxSize = Vector2.new(320, 205)
 statsLimit.Parent = stats
 local healthLabel = text(stats, UDim2.fromOffset(12, 7), UDim2.new(1, -24, 0, 21), "PLAYER • 200 / 200", 16)
 local healthTrack = frame(stats, UDim2.fromOffset(12, 31), UDim2.new(1, -24, 0, 8), Color3.fromRGB(43, 69, 57))
@@ -75,7 +76,30 @@ local healthFill = frame(healthTrack, UDim2.new(), UDim2.fromScale(1, 1), Color3
 local brainrotLabel = text(stats, UDim2.fromOffset(12, 44), UDim2.new(1, -24, 0, 36), "CHOOSE YOUR BRAINROT", 14)
 local brainrotTrack = frame(stats, UDim2.fromOffset(12, 84), UDim2.new(1, -24, 0, 8), Color3.fromRGB(61, 62, 54))
 local brainrotFill = frame(brainrotTrack, UDim2.new(), UDim2.fromScale(1, 1), Color3.fromRGB(255, 211, 101))
-local weaponLabel = text(stats, UDim2.fromOffset(10, 101), UDim2.new(1, -20, 0, 30), "Bat + Sniper supplied in battle", 14)
+local weaponLabel = text(stats, UDim2.fromOffset(10, 101), UDim2.new(1, -20, 0, 30), "Five weapons supplied in battle", 14)
+
+local movementLabel=text(stats,UDim2.fromOffset(10,135),UDim2.new(1,-20,0,20),"STAND / STAMINA 100%",13)
+local staminaTrack=frame(stats,UDim2.fromOffset(12,159),UDim2.new(1,-24,0,7),Color3.fromRGB(48,61,67))
+local staminaFill=frame(staminaTrack,UDim2.new(),UDim2.fromScale(1,1),Color3.fromRGB(105,196,236))
+local controlsLabel=text(stats,UDim2.fromOffset(8,172),UDim2.new(1,-16,0,28),"Shift: sprint / C: crouch / X: prone / R: reload",11)
+local function inputLayout()
+    local touch=UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+    stats.AnchorPoint=touch and Vector2.new(0,0) or Vector2.new(0,1)
+    stats.Position=touch and UDim2.new(0.02,0,0,114) or UDim2.new(0.025,0,1,-20)
+    stats.Size=touch and UDim2.new(0.5,0,0,112) or UDim2.new(0.43,0,0,205)
+    healthLabel.Position=UDim2.fromOffset(10,touch and 0 or 7); healthLabel.TextSize=touch and 12 or 16
+    brainrotLabel.Position=UDim2.fromOffset(10,touch and 20 or 44)
+    brainrotLabel.Size=UDim2.new(1,-20,0,touch and 26 or 36); brainrotLabel.TextSize=touch and 11 or 14
+    weaponLabel.Position=UDim2.fromOffset(10,touch and 48 or 101)
+    weaponLabel.Size=UDim2.new(1,-20,0,28); weaponLabel.TextSize=touch and 12 or 14
+    movementLabel.Position=UDim2.fromOffset(10,touch and 78 or 135); movementLabel.TextSize=touch and 11 or 13
+    staminaTrack.Position=UDim2.fromOffset(12,touch and 101 or 159)
+    healthTrack.Visible=not touch; brainrotTrack.Visible=not touch; controlsLabel.Visible=not touch; teamRoster.Visible=not touch
+    local gamepad=string.find(UserInputService:GetLastInputType().Name,"Gamepad")~=nil
+    controlsLabel.Text=gamepad and "L3: sprint / B: crouch / D-pad down: prone / X: reload / L2: scope" or "Shift: sprint / C: crouch / X: prone / R: reload"
+end
+UserInputService.LastInputTypeChanged:Connect(inputLayout)
+inputLayout()
 
 local alert = text(gui, UDim2.fromScale(0.5, 0.25), UDim2.new(0.9, 0, 0, 44), "", 22, Color3.fromRGB(255, 125, 111))
 alert.AnchorPoint = Vector2.new(0.5, 0)
@@ -147,13 +171,17 @@ local function attack()
     if not def then return end
     nextAttack = os.clock()+def.Cooldown
     action:FireServer("Attack", aimPoint())
-    if tool.Name == "Bat" then
+    if def.Kind == "Melee" then
         local grip = tool.Grip
-        local swing = TweenService:Create(tool, TweenInfo.new(0.12), { Grip = grip*CFrame.Angles(math.rad(-85), 0, math.rad(20)) })
+        local swing = TweenService:Create(tool, TweenInfo.new(def.Window*0.7), { Grip = grip*CFrame.Angles(math.rad(-85), 0, math.rad(20)) })
         swing:Play()
         task.delay(0.15, function()
             if tool.Parent then TweenService:Create(tool, TweenInfo.new(0.22), { Grip = grip }):Play() end
         end)
+    else
+        local grip=tool.Grip
+        TweenService:Create(tool,TweenInfo.new(0.06),{Grip=grip*CFrame.Angles(math.rad(-7),0,0)}):Play()
+        task.delay(0.08,function() if tool.Parent then TweenService:Create(tool,TweenInfo.new(0.16),{Grip=grip}):Play() end end)
     end
 end
 
@@ -180,6 +208,8 @@ local function bindControls(enabled)
         ContextActionService:UnbindAction("BattleFire")
         ContextActionService:UnbindAction("BattleReload")
         ContextActionService:UnbindAction("BattleScope")
+        for _,name in ipairs({"Sprint","Crouch","Prone"}) do ContextActionService:UnbindAction("Battle"..name) end
+        moveAction:FireServer("SprintOff")
         return
     end
     ContextActionService:BindAction("BattleFire", function(_, state)
@@ -187,19 +217,44 @@ local function bindControls(enabled)
         return Enum.ContextActionResult.Sink
     end, true, Enum.KeyCode.ButtonR2)
     ContextActionService:SetTitle("BattleFire", "FIRE")
-    ContextActionService:SetPosition("BattleFire", UDim2.new(1, -90, 1, -180))
+    ContextActionService:SetPosition("BattleFire", UDim2.new(1, -65, 1, -140))
     ContextActionService:BindAction("BattleReload", function(_, state)
-        if state == Enum.UserInputState.Begin then action:FireServer("Reload") end
+        if state == Enum.UserInputState.Begin then
+            action:FireServer("Reload")
+            local tool=currentTool()
+            if tool and Config.Weapons[tool.Name].Magazine and latest.Ammo<Config.Weapons[tool.Name].Magazine and latest.Reserve>0 then
+                local grip=tool.Grip
+                TweenService:Create(tool,TweenInfo.new(0.2),{Grip=grip*CFrame.Angles(0,0,math.rad(25))}):Play()
+                task.delay(0.4,function() if tool.Parent then TweenService:Create(tool,TweenInfo.new(0.2),{Grip=grip}):Play() end end)
+            end
+        end
         return Enum.ContextActionResult.Sink
     end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonX)
     ContextActionService:SetTitle("BattleReload", "RELOAD")
-    ContextActionService:SetPosition("BattleReload", UDim2.new(1, -180, 1, -180))
+    ContextActionService:SetPosition("BattleReload", UDim2.new(1, -135, 1, -140))
     ContextActionService:BindAction("BattleScope", function(_, state)
         if state == Enum.UserInputState.Begin then setScope(not scoped) end
         return Enum.ContextActionResult.Sink
     end, true, Enum.UserInputType.MouseButton2, Enum.KeyCode.ButtonL2)
     ContextActionService:SetTitle("BattleScope", "SCOPE")
-    ContextActionService:SetPosition("BattleScope", UDim2.new(1, -90, 1, -270))
+    ContextActionService:SetPosition("BattleScope", UDim2.new(1, -205, 1, -140))
+    ContextActionService:BindAction("BattleSprint",function(_,state,input)
+        if state==Enum.UserInputState.Begin then
+            local toggle=input.UserInputType==Enum.UserInputType.Touch or input.KeyCode==Enum.KeyCode.ButtonL3
+            moveAction:FireServer(toggle and latest.Sprint and "SprintOff" or "SprintOn")
+        elseif (state==Enum.UserInputState.End or state==Enum.UserInputState.Cancel) and input.KeyCode==Enum.KeyCode.LeftShift then moveAction:FireServer("SprintOff") end
+        return Enum.ContextActionResult.Sink
+    end,true,Enum.KeyCode.LeftShift,Enum.KeyCode.ButtonL3)
+    ContextActionService:SetTitle("BattleSprint","SPRINT")
+    ContextActionService:SetPosition("BattleSprint",UDim2.new(1,-65,1,-210))
+    for index,name in ipairs({"Crouch","Prone"}) do
+        ContextActionService:BindAction("Battle"..name,function(_,state)
+            if state==Enum.UserInputState.Begin then moveAction:FireServer(name) end
+            return Enum.ContextActionResult.Sink
+        end,true,index==1 and Enum.KeyCode.C or Enum.KeyCode.X,index==1 and Enum.KeyCode.ButtonB or Enum.KeyCode.DPadDown)
+        ContextActionService:SetTitle("Battle"..name,string.upper(name))
+        ContextActionService:SetPosition("Battle"..name,UDim2.new(1,-65-index*70,1,-210))
+    end
 end
 
 local controlsEnabled = false
@@ -239,10 +294,17 @@ snapshot.OnClientEvent:Connect(function(data)
         phaseLabel.Text = "STUDIO PRACTICE — NOT A LIVE MATCH"
         statusLabel.Text = data.Active and "Test enemy objectives, cover and respawns • No timer or automatic victory" or "Studio practice is running • Use the test tools to reset or exit"
     end
-    if data.Weapon == "Sniper" then
-        weaponLabel.Text = data.Reloading > 0 and ("SNIPER • Reloading "..string.format("%.1f", data.Reloading).."s") or ("SNIPER • "..data.Ammo.." / "..Config.Weapons.Sniper.Magazine.." • R: reload")
-    elseif data.Weapon == "Bat" then weaponLabel.Text = "BAT • Click / FIRE to swing"
-    else weaponLabel.Text = controls and "Equip Bat or Sniper from your backpack" or "Bat + Sniper supplied in battle" end
+    local weapon=Config.Weapons[data.Weapon]
+    if weapon and weapon.Magazine then
+        weaponLabel.Text=string.upper(data.Weapon).." / "..data.Ammo.." loaded / "..data.Reserve.." reserve"..(data.Reloading>0 and (" / Reload "..string.format("%.1fs",data.Reloading)) or "")
+    elseif weapon then weaponLabel.Text=string.upper(data.Weapon).." / SWING"
+    else weaponLabel.Text=controls and "Equip a weapon from your backpack" or "Five weapons supplied in battle" end
+    local stamina=math.clamp(data.Stamina or 1,0,1)
+    staminaFill.Size=UDim2.fromScale(stamina,1)
+    movementLabel.Text=string.upper(data.Sprint and "Sprint" or data.Stance or "Stand").." / STAMINA "..math.floor(stamina*100+0.5).."%"
+    local hum=player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if hum then hum.CameraOffset=Vector3.new(0,data.Stance=="Prone" and 0.25 or data.Stance=="Crouch" and -0.15 or 0,0) end
+
 end)
 
 local toastVersion, hitVersion = 0, 0

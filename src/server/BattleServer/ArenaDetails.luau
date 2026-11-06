@@ -18,15 +18,6 @@ function Details.center(parent,part)
     local hub = Instance.new("Model"); hub.Name = "CentralSupplyRuins"; hub.Parent = parent
     local disk = part(hub,"Clearing",Vector3.new(0.18,94,94),CFrame.new(0,0.09,0)*CFrame.Angles(0,0,math.pi/2),Color3.fromRGB(131,118,86),Enum.Material.Ground)
     disk.Shape = Enum.PartType.Cylinder
-    -- Angular, weathered metal cornucopia shelter, open to the south.
-    part(hub,"SupplyDais",Vector3.new(28,1,25),CFrame.new(0,0.5,0),stone,Enum.Material.Concrete)
-    part(hub,"ShelterBack",Vector3.new(28,14,1),CFrame.new(0,8,-12),metal,Enum.Material.CorrodedMetal)
-    for _, side in ipairs({-1,1}) do
-        part(hub,"ShelterWing",Vector3.new(1,13,24),CFrame.new(side*14,7.5,0),metal,Enum.Material.CorrodedMetal)
-        part(hub,"FoldedCanopy",Vector3.new(16,1,27),CFrame.new(side*7,15,0)*CFrame.Angles(0,0,side*math.rad(-14)),Color3.fromRGB(109,115,94),Enum.Material.CorrodedMetal)
-        crate(hub,CFrame.new(side*8,3,4),Vector3.new(6,4,6),part)
-        crate(hub,CFrame.new(side*9,2.5,-6),Vector3.new(4,3,4),part)
-    end
     for n=1,16 do
         local a=n*math.pi/8
         local cf=CFrame.new(math.cos(a)*39,0.5,math.sin(a)*39)*CFrame.Angles(0,-a,0)
@@ -76,7 +67,7 @@ function Details.sector(parent,angle,part,config)
                 fern.Shape=Enum.PartType.Ball
             end
             local rock=part(model,"ForestStone",Vector3.new(2+n%2,1.3,2.5),patch*CFrame.new(5,0.5,3),stone,Enum.Material.Rock)
-            rock.Shape=Enum.PartType.Ball
+            rock.Shape=Enum.PartType.Ball; rock.CanCollide=false; rock.CanQuery=false
             for k=1,2 do
                 local cap=decor(part(model,"MushroomCap",Vector3.new(0.8,0.35,0.8),patch*CFrame.new(-3+k,0.8,k),Color3.fromRGB(174,111,71),Enum.Material.SmoothPlastic))
                 cap.Shape=Enum.PartType.Ball

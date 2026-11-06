@@ -62,7 +62,7 @@ local collapsed = false
 local toggle = button(panel, "STUDIO TEST TOOLS  −", function()
     collapsed = not collapsed
     body.Visible = not collapsed
-    panel.Size = collapsed and UDim2.new(0.46, 0, 0, 34) or expanded
+    panel.Size = collapsed and UDim2.new(0.22, 0, 0, 34) or expanded
 end)
 toggle.Position = UDim2.fromOffset(4, 0)
 local status = Instance.new("TextLabel")
@@ -104,6 +104,9 @@ end
 choose.Activated:Connect(update)
 toggle.Activated:Connect(update)
 remote.OnClientEvent:Connect(function(data)
+    if data.Active and not state.Active then
+        collapsed=true; body.Visible=false; panel.Size=UDim2.new(0.22,0,0,34)
+    end
     state = data
     gui.Enabled = data.Enabled
     if data.Message ~= "" then status.Text = data.Message

@@ -1,3 +1,4 @@
+local Layout = require(game:GetService("ReplicatedStorage").Shared.Layout)
 -- Reusable three-level fort and excavated ground. No gameplay state lives here.
 local Architecture = {}
 local stone = Color3.fromRGB(79, 87, 80)
@@ -74,10 +75,10 @@ function Architecture.base(parent, def, index, cf, color, part, sculpture, healt
             block("GroundSideWall",Vector3.new(2,15,24),Vector3.new(side*31,7.5,z))
         end
         block("FrontWall",Vector3.new(19,15,2),Vector3.new(side*22.5,7.5,-31))
-        block("UpperParapet",Vector3.new(2,3,64),Vector3.new(side*31,17.5,0))
-        block("UpperParapet",Vector3.new(60,3,2),Vector3.new(0,17.5,side*31))
+        block("UpperParapet",Vector3.new(2,3.5,64),Vector3.new(side*31,17.75,0))
+        block("UpperParapet",Vector3.new(60,3.5,2),Vector3.new(0,17.75,side*31))
         for _, z in ipairs({-30,0,30}) do
-            block("TimberPost",Vector3.new(2,30,2),Vector3.new(side*30,15,z),wood,Enum.Material.Wood)
+            block("TimberPost",Vector3.new(2,38,2),Vector3.new(side*30,19,z),wood,Enum.Material.Wood)
         end
         block("ColorTrim",Vector3.new(1,0.35,60),Vector3.new(side*32.05,16,0),color,Enum.Material.Neon)
         -- Rail guards along the inside of each stairwell; ends stay open.
@@ -86,9 +87,9 @@ function Architecture.base(parent, def, index, cf, color, part, sculpture, healt
     end
     block("RearWall",Vector3.new(60,15,2),Vector3.new(0,7.5,31))
     block("DoorLintel",Vector3.new(26,4,2),Vector3.new(0,13,-31),wood,Enum.Material.Wood)
-    block("ShelterRoof",Vector3.new(66,1,66),Vector3.new(0,30.5,0),wood,Enum.Material.WoodPlanks)
+    block("ShelterRoof",Vector3.new(66,1,66),Vector3.new(0,38.5,0),wood,Enum.Material.WoodPlanks)
     for x = -24,24,12 do
-        block("RoofBeam",Vector3.new(1.3,1.3,64),Vector3.new(x,29.4,0),dark,Enum.Material.Wood)
+        block("RoofBeam",Vector3.new(1.3,1.3,64),Vector3.new(x,37.4,0),dark,Enum.Material.Wood)
     end
     -- Walkable steps, with the full rise exposed through the matching floor opening.
     for flight = 1,2 do
@@ -139,8 +140,19 @@ function Architecture.base(parent, def, index, cf, color, part, sculpture, healt
     end
     block("BasementRunner",Vector3.new(8,0.06,30),Vector3.new(0,-11.96,0),color,Enum.Material.Fabric)
     block("GroundRunner",Vector3.new(6,0.06,20),Vector3.new(0,0.04,9),color,Enum.Material.Fabric)
-    -- Inset ritual floor and low lights frame the upstairs Brainrot without walls
-    -- that would prevent bat hits or obstruct the stair landing.
+    -- Sealed room with an offset front door and a full-height inner baffle.
+    -- All glass is solid/queryable, so the same raycast stops bullets and bolts.
+    block("ObjectiveRoomRear",Vector3.new(26,22,1),Vector3.new(0,27,29))
+    for _, side in ipairs({-1,1}) do
+        block("ObjectiveRoomSill",Vector3.new(1,4,22),Vector3.new(side*13,18,18))
+        local glass=block("ObjectiveGlass",Vector3.new(1,18,22),Vector3.new(side*13,29,18),Color3.fromRGB(155,194,188),Enum.Material.Glass)
+        glass.Transparency=0.35; glass.CanCollide=true; glass.CanQuery=true
+    end
+    block("ObjectiveRoomFront",Vector3.new(18,22,1),Vector3.new(-4,27,7))
+    block("ObjectiveDoorJamb",Vector3.new(2,22,1),Vector3.new(12,27,7))
+    block("ObjectiveDoorLintel",Vector3.new(6,12,1),Vector3.new(8,32,7))
+    block("ObjectiveBaffle",Vector3.new(18,22,1),Vector3.new(4,27,12))
+    block("ObjectiveRoomRoof",Vector3.new(27,1,23),Vector3.new(0,38.5,18))
     block("ObjectiveInlay",Vector3.new(18,0.08,16),Vector3.new(0,16.05,18),dark,Enum.Material.Metal)
     for _,side in ipairs({-1,1}) do
         block("ObjectiveLight",Vector3.new(0.3,0.12,15),Vector3.new(side*8.5,16.12,18),color,Enum.Material.Neon)
@@ -153,13 +165,15 @@ function Architecture.base(parent, def, index, cf, color, part, sculpture, healt
     local anchor = block("ObjectiveHealthAnchor",Vector3.one,Vector3.new(0,18.2+statue:GetAttribute("VisualHeight"),18),color)
     anchor.Transparency = 1; anchor.CanCollide = false; anchor.CanQuery = false
     local status = healthBar(anchor)
-    for _,x in ipairs({-3,3}) do
-        for _,z in ipairs({-13,-7}) do
-            block("SpawnPad",Vector3.new(3.6,0.12,3.6),Vector3.new(x,0.06,z),color,Enum.Material.Neon)
-        end
+    local spawns, locations = {}, {}
+    for slot=1,4 do
+        local o=Layout.spawnOffset(slot)
+        block("SpawnPad",Vector3.new(3.6,0.12,3.6),Vector3.new(o.X,0.06,o.Z),color,Enum.Material.Neon)
+        spawns[slot]=cf*CFrame.lookAt(Vector3.new(o.X,4,o.Z),Vector3.new(0,4,0))
+        locations[slot]=Architecture.spawnLocation(base,cf*CFrame.new(o.X,0.22,o.Z))
     end
-    local spawnLocation = Architecture.spawnLocation(base, cf*CFrame.new(0,0.22,-10))
-    return {Model=base,Spawn=cf*CFrame.new(0,4,-10),SpawnLocation=spawnLocation,Hitbox=hit,Statue=statue,HealthBar=status,Team=nil,HP=0}
+    return {Model=base,Transform=cf,Spawn=cf*CFrame.new(0,4,0),SpawnCFrames=spawns,
+        SpawnLocations=locations,SpawnLocation=locations[1],Hitbox=hit,Statue=statue,HealthBar=status,Team=nil,HP=0}
 end
 
 return Architecture

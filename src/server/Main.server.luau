@@ -12,6 +12,9 @@ local Server = script.Parent.BattleServer
 local Match = require(Server.MatchState)
 local World = require(Server.World)
 local Combat = require(Server.Combat)
+local SpawnPlacement=require(Server.SpawnPlacement)
+local MovementService=require(Server.MovementService)
+local movement=MovementService.new()
 local match = Match.new(Config)
 local liveMatch = match
 local practice
@@ -33,11 +36,13 @@ local function remote(name)
     return event
 end
 local action, snapshot, feedback = remote("Action"), remote("Snapshot"), remote("Feedback")
+local moveRemote=remote("Movement")
 local practiceEnabled = Config.StudioPracticeEnabled == true and RunService:IsStudio()
 remotes:SetAttribute("StudioPracticeEnabled", practiceEnabled)
 local practiceRemote = practiceEnabled and remote("Practice") or nil
 local world, combat
 local initialized, loading, selectionAt, deathGeneration, teleportAt = {}, {}, {}, {}, {}
+local pendingLoad = {}
 local function now() return workspace:GetServerTimeNow() end
 local function notice(player, text) feedback:FireClient(player, { Kind = "Notice", Text = text }) end
 local function rootOf(player) return player.Character and player.Character:FindFirstChild("HumanoidRootPart") end
@@ -73,6 +78,7 @@ end
 if RunService:IsStudio() then require(Server.StudioPreview).remove() end
 world = World.new(selectBase, travel)
 combat = Combat.new(match, world, feedback, function() world:update(match, now()) end)
+combat.StopSprint=function(id) movement.State:stop(id) end
 
 local function place(player, character)
     character:SetAttribute("BattleReady", false)
@@ -89,19 +95,29 @@ local function place(player, character)
     -- cannot carry its velocity into the selected base.
     root.Anchored = true
     if member and member.Alive then
-        local offset = Layout.spawnOffset(member.Slot)
         player.Team = robloxTeams[member.Base]
         player.Neutral = false
         local base = world.Bases[member.Base]
-        player.RespawnLocation = base.SpawnLocation
-        character:PivotTo(base.Spawn*CFrame.new(offset.X, 0, offset.Z))
+        player.RespawnLocation=base.SpawnLocations[member.Slot]
+        local destination=SpawnPlacement.find(base,member.Slot,character)
+        while not destination do
+            -- Retain a safe, anchored body until its ground-floor quadrant clears.
+            character:PivotTo(base.SpawnCFrames[member.Slot])
+            task.wait(0.2)
+            if player.Character~=character or not player.Parent then return end
+            if match:participant(player.UserId)~=member or not member.Alive then root.Anchored=false; return place(player,character) end
+            destination=SpawnPlacement.find(base,member.Slot,character)
+        end
+        character:PivotTo(destination)
         player:SetAttribute("ProtectedUntil", now()+Config.SpawnProtection)
         local shield = Instance.new("ForceField")
         shield.Name = "SpawnShield"
         shield.Parent = character
         game:GetService("Debris"):AddItem(shield, Config.SpawnProtection)
         combat:grant(player)
+        movement:reset(player)
     else
+        movement:remove(player)
         player.Neutral = true
         player.Team = nil
         player.RespawnLocation = world.HoldingSpawnLocation
@@ -118,7 +134,8 @@ end
 
 local loadCharacter, characterAdded
 loadCharacter = function(player, attempt)
-    if not player.Parent or loading[player] then return end
+    if not player.Parent then return end
+    if loading[player] then pendingLoad[player]=true; return end
     loading[player] = true
     -- Retire the old holding/arena body before an asynchronous load. Otherwise the
     -- bounds watchdog can kill it using the NEW round's membership while loading.
@@ -128,13 +145,14 @@ loadCharacter = function(player, attempt)
         local ok, err = pcall(function()
             local member = match:participant(player.UserId)
             player.RespawnLocation = member and member.Alive
-                and world.Bases[member.Base].SpawnLocation or world.HoldingSpawnLocation
+                and world.Bases[member.Base].SpawnLocations[member.Slot] or world.HoldingSpawnLocation
             player:LoadCharacterAsync()
             -- CharacterAdded fires BEFORE Roblox's final spawn positioning. Moving
             -- there can be overwritten, leaving the tester in the sky/out of bounds.
             if player.Parent and player.Character then characterAdded(player, player.Character) end
         end)
         loading[player] = nil
+        if pendingLoad[player] then pendingLoad[player]=nil; loadCharacter(player); return end
         if not ok and player.Parent then
             warn("[BrainRotBattle] character load failed", player.UserId, err)
             if (attempt or 0) < 2 then
@@ -155,6 +173,7 @@ characterAdded = function(player, character)
     hum.Died:Once(function()
         if player.Character ~= character or deathGeneration[player] ~= generation then return end
         combat:clearTools(player)
+        movement:remove(player)
         local ticket = match:die(player.UserId)
         local round = match.Round
         task.delay(Config.RespawnDelay, function()
@@ -184,6 +203,8 @@ Players.PlayerRemoving:Connect(function(player)
     if practice then practice:remove(player.UserId) end
     match:leave(player.UserId)
     combat:remove(player)
+    movement:remove(player)
+    pendingLoad[player]=nil
     initialized[player], loading[player], selectionAt[player], deathGeneration[player], teleportAt[player] = nil, nil, nil, nil, nil
     world:update(match, now())
 end)
@@ -197,7 +218,12 @@ action.OnServerEvent:Connect(function(player, kind, aim)
     combat:handle(player, kind, aim, now())
 end)
 
+moveRemote.OnServerEvent:Connect(function(player,request)
+    movement:handle(player,request,now(),match:canFight(player.UserId))
+end)
+
 local function holding(player)
+    movement:remove(player)
     combat:clearTools(player)
     combat.Weapons:remove(player.UserId)
     player:SetAttribute("ProtectedUntil", 0)
@@ -265,7 +291,10 @@ local function publish(t)
     for _, player in ipairs(Players:GetPlayers()) do
         local member = match:participant(player.UserId)
         local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-        local weapons = combat.Weapons:get(player.UserId, t)
+        local equipped=combat:equipped(player)
+        combat.Weapons:equip(player.UserId,equipped)
+        local weapons=combat.Weapons:get(player.UserId,t,equipped)
+        local move=movement.State.Players[player.UserId]
         local health = hum and math.ceil(hum.Health) or 0
         local base = member and member.Base or match.Choices[player.UserId]
         local team = member and match.Teams[member.Base]
@@ -284,7 +313,9 @@ local function publish(t)
             Base = base or 0, ObjectiveHP = team and team.HP or 0, Health = health,
             Opponents = math.max(0, survivors-(member and 1 or 0)), Choices = choices,
             Teammates = teammates, TeamSize = Config.TeamSize,
-            Weapon = combat:equipped(player) or "",
+            Weapon = equipped or "",
+            Reserve=weapons and weapons.Reserve or 0,
+            Stamina=move and move.Stamina or 1, Stance=move and move.Stance or "Stand", Sprint=move and move.Sprint or false,
             Ammo = weapons and weapons.Ammo or 0,
             Reloading = weapons and math.max(0, weapons.ReloadUntil-t) or 0,
             Protection = math.max(0, (player:GetAttribute("ProtectedUntil") or 0)-t),
@@ -292,8 +323,18 @@ local function publish(t)
     end
 end
 
+RunService.PreSimulation:Connect(function()
+    local t=now()
+    for _,rig in pairs(movement.Rigs) do rig:animate(t) end
+end)
 local accumulated = 0
 RunService.Heartbeat:Connect(function(dt)
+    combat:step(dt,now())
+    for _,player in ipairs(Players:GetPlayers()) do
+        local equipped=combat:equipped(player)
+        local weapon=combat.Weapons:get(player.UserId,now(),equipped)
+        movement:step(player,dt,not match:canFight(player.UserId) or (weapon and weapon.ReloadUntil>now()))
+    end
     accumulated = accumulated+dt
     if accumulated < 0.15 then return end
     accumulated = 0
